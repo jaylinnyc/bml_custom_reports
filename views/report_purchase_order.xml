@@ -6,10 +6,15 @@
                   inherit_id="purchase.report_purchaseorder_document"
                   name="BML - PO Signature after Notes"
                   priority="50">
+
+            <!-- Remove payment terms after the notes-->
+            <xpath expr="//p[@t-field=&quot;o.note&quot;]/following::strong[1]" position="replace"/>
+            <xpath expr="//p[@t-field=&quot;o.note&quot;]/following::span[@t-field=&quot;o.payment_term_id&quot;][1]" position="replace"/>
+            
             <!-- Insert immediately after the <p t-field="o.note"/> -->
             <xpath expr="//p[@t-field='o.note']" position="after">
                 <div class="text-center" style="page-break-inside: avoid;">
-                    <table width="100%" style="border: 0 !important; border-collapse: collapse !important; margin-top: 5px;">
+                    <table width="100%" class="mt-2" style="border: 0 !important; border-collapse: collapse !important; margin-top: 5px;">
                         <tr>
                             <td width="50%" style="text-align: center;">
                                 <div style="height: 90px; display: flex; align-items: end; justify-content: center;">
