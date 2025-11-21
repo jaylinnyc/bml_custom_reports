@@ -7,11 +7,6 @@
     'data': [
         'views/report_purchase_order.xml',   # keep your footer override
     ],
-    'assets': {
-        'web.report_assets_common': [        # This bundle loads on ALL PDF reports
-            'static/src/css/report_fixes.css',
-        ],
-    },
     'installable': True,
     'license': 'OPL-1',
 }

@@ -46,12 +46,18 @@
 
         </template>
 
-        <!-- Separate inheritance for web.address_layout to safely remove the address padding -->
-        <template id="bml_address_padding_override" inherit_id="web.address_layout" priority="100">
-            <xpath expr="//div[contains(@class, 'address') and contains(@class, 'row') and contains(@class, 'mb-4')]" position="attributes">
-                <attribute name="class">address row mb-0</attribute>
+        <!-- Fix the 42px top padding on address block (works on all reports) -->
+        <template id="bml_address_padding_fix" 
+                  inherit_id="web.address_layout" 
+                  name="BML - Remove address top padding" 
+                  priority="100">
+
+            <!-- Target the exact div that has class "address row mb-4" -->
+            <xpath expr="//div[contains(@class, 'address') and contains(@class, 'row') and contains(@class, 'mb-4')]" 
+                   position="attributes">
                 <attribute name="style">padding-top: 0 !important; margin-top: 0 !important;</attribute>
             </xpath>
+
         </template>
     </data>
 </odoo>
