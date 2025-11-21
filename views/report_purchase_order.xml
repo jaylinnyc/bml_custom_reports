@@ -53,8 +53,7 @@
                   priority="100">
 
             <!-- This XPath matches the div no matter the class order or extra classes -->
-            <xpath expr="//div[contains(@class, 'address') and contains(@class, 'row') and contains(concat(' ', @class, ' '), ' mb-4 ')]" 
-                   position="attributes">
+            <xpath expr="//div[t-if='address']" position="attributes">
                 <attribute name="style">padding-top: 0 !important; margin-top: 0 !important;</attribute>
             </xpath>
 
