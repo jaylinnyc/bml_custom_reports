@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="0">
+
+        <!-- BML - Professional signature block on Purchase Order (above footer, notes preserved) -->
+        <template id="bml_po_professional_signature"
+                  inherit_id="purchase.report_purchaseorder_document"
+                  name="BML - Purchase Order Professional Signature"
+                  priority="50">
+
+            <!-- Insert signature block right before the footer (after everything else) -->
+            <xpath expr="//div[@class='footer']" position="before">
+                <div class="mt-5 pt-4">
+                    <table width="100%" style="border-top: 2px solid #333; margin-top: 40px;">
+                        <tr>
+                            <td width="50%" style="text-align: center; vertical-align: bottom; padding-bottom: 20px;">
+                                <!-- Signature image -->
+                                <t t-if="o.x_studio_approval_signature">
+                                    <img t-att-src="image_data_uri(o.x_studio_approval_signature)"
+                                         style="max-height: 90px; width: auto; display: block; margin: 0 auto 10px auto;"/>
+                                </t>
+                                <!-- Signature line -->
+                                <div style="border-top: 1px solid #000; width: 280px; margin: 0 auto;"></div>
+                                <div style="margin-top: 8px; font-weight: bold; font-size: 14px;">
+                                    ผู้อนุมัติ / Approved by
+                                </div>
+                            </td>
+
+                            <td width="50%" style="text-align: center; vertical-align: bottom; padding-bottom: 20px;">
+                                <!-- Date -->
+                                <div style="height: 90px; display: flex; align-items: end; justify-content: center;">
+                                    <strong style="font-size: 16px;">
+                                        <span t-field="o.date_approve" t-options='{"widget": "date"}'/>
+                                    </strong>
+                                </div>
+                                <div style="border-top: 1px solid #000; width: 180px; margin: 10px auto 0 auto;"></div>
+                                <div style="margin-top: 8px; font-weight: bold; font-size: 14px;">
+                                    วันที่อนุมัติ / Approval Date
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </xpath>
+
+        </template>
+
+    </data>
+</odoo>
