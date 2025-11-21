@@ -6,9 +6,6 @@
                   inherit_id="purchase.report_purchaseorder_document"
                   name="BML - PO Signature after Notes"
                   priority="50">
-            <xpath expr="//t[@t-call='web.external_layout']/div/div[5]" position="replace" meta-class="oe_structure"/>
-            <xpath expr="//t[@t-call='web.external_layout']//span[@t-field='o.payment_term_id']" position="replace" meta-t-field="o.payment_term_id" meta-class="mt-4"/>
-            <xpath expr="//t[@t-call='web.external_layout']/div/strong" position="replace"/>
             <!-- Insert immediately after the <p t-field="o.note"/> -->
             <xpath expr="//p[@t-field='o.note']" position="after">
                 <div class="text-center" style="page-break-inside: avoid;">
