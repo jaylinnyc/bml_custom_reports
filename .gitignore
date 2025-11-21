@@ -1,0 +1,14 @@
+# Python byte-code
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+
+# Odoo-specific generated files
+/.venv
+/.idea
+/.vscode
+/filestore
+/session
+*.log
