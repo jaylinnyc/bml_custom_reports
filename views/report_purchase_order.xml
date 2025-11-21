@@ -1,46 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data noupdate="0">
-
         <!-- BML - Signature block right after the notes on Purchase Order -->
         <template id="bml_po_signature_after_notes"
                   inherit_id="purchase.report_purchaseorder_document"
                   name="BML - PO Signature after Notes"
                   priority="50">
-
+            <xpath expr="//t[@t-call='web.external_layout']/div/div[5]" position="replace" meta-class="oe_structure"/>
+            <xpath expr="//t[@t-call='web.external_layout']//span[@t-field='o.payment_term_id']" position="replace" meta-t-field="o.payment_term_id" meta-class="mt-4"/>
+            <xpath expr="//t[@t-call='web.external_layout']/div/strong" position="replace"/>
             <!-- Insert immediately after the <p t-field="o.note"/> -->
             <xpath expr="//p[@t-field='o.note']" position="after">
                 <div class="mt-5 pt-4 text-center" style="page-break-inside: avoid;">
-                    <table width="100%" style="border-top: 2px solid #333; margin-top: 50px;">
+                    <table width="100%" style="border-top: 2px solid #333; margin-top: 5px;">
                         <tr>
-                            <td width="50%" style="text-align: center; padding: 20px;">
+                            <td width="50%" style="text-align: center;">
                                 <t t-if="o.x_studio_approval_signature">
-                                    <img t-att-src="image_data_uri(o.x_studio_approval_signature)"
-                                         style="max-height: 90px; width: auto; display: block; margin: 0 auto 15px auto;"/>
+                                    <img t-att-src="image_data_uri(o.x_studio_approval_signature)" style="max-height: 90px; min-height: 90px; width: auto; display: block; margin: 0 auto 15px auto;"/>
                                 </t>
-                                <div style="border-top: 1px solid #000; width: 280px; margin: 0 auto;"></div>
+                                <div style="border-top: 1px solid #000; width: 280px; margin: 0 auto;"/>
                                 <div style="margin-top: 10px; font-weight: bold; font-size: 14px;">
-                                    ผู้อนุมัติ / Approved by
-                                </div>
+ผู้อนุมัติ / Approved by
+</div>
                             </td>
-
-                            <td width="50%" style="text-align: center; padding: 20px;">
+                            <td width="50%" style="text-align: center;">
                                 <div style="height: 90px; display: flex; align-items: end; justify-content: center;">
                                     <strong style="font-size: 16px;">
-                                        <span t-field="o.date_approve" t-options='{"widget": "date"}'/>
+                                        <span t-field="o.date_approve" t-options="{&quot;widget&quot;: &quot;date&quot;}"/>
                                     </strong>
                                 </div>
-                                <div style="border-top: 1px solid #000; width: 180px; margin: 15px auto 0 auto;"></div>
+                                <div style="border-top: 1px solid #000; width: 180px; margin: 15px auto 0 auto;"/>
                                 <div style="margin-top: 10px; font-weight: bold; font-size: 14px;">
-                                    วันที่อนุมัติ / Approval Date
-                                </div>
+วันที่อนุมัติ / Approval Date
+</div>
                             </td>
                         </tr>
                     </table>
                 </div>
             </xpath>
-
         </template>
-
     </data>
 </odoo>

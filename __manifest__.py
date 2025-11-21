@@ -9,7 +9,7 @@
     ],
     'assets': {
         'web.report_assets_common': [        # This bundle loads on ALL PDF reports
-            'bml_custom_reports/static/src/css/report_fixes.css',
+            'static/src/css/report_fixes.css',
         ],
     },
     'installable': True,
