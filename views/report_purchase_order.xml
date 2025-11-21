@@ -2,36 +2,36 @@
 <odoo>
     <data noupdate="0">
 
-        <!-- Works on BOTH Community and Enterprise Odoo 19 -->
-        <template id="bml_po_professional_signature"
+        <!-- BML - Signature block right after the notes on Purchase Order -->
+        <template id="bml_po_signature_after_notes"
                   inherit_id="purchase.report_purchaseorder_document"
-                  name="BML - Purchase Order Professional Signature"
+                  name="BML - PO Signature after Notes"
                   priority="50">
 
-            <!-- This works in Community (div.footer) AND Enterprise (t-call footer or boxed) -->
-            <xpath expr="//t[@t-call='web.external_layout']//div[last()][contains(@class, 'footer') or contains(@t-attf-class, 'footer')]" position="before">
-                <div class="mt-5 pt-4">
-                    <table width="100%" style="border-top: 2px solid #333; margin-top: 40px; page-break-inside: avoid;">
+            <!-- Insert immediately after the <p t-field="o.note"/> -->
+            <xpath expr="//p[@t-field='o.note']" position="after">
+                <div class="mt-5 pt-4 text-center" style="page-break-inside: avoid;">
+                    <table width="100%" style="border-top: 2px solid #333; margin-top: 50px;">
                         <tr>
-                            <td width="50%" style="text-align: center; vertical-align: bottom; padding-bottom: 20px;">
+                            <td width="50%" style="text-align: center; padding: 20px;">
                                 <t t-if="o.x_studio_approval_signature">
                                     <img t-att-src="image_data_uri(o.x_studio_approval_signature)"
-                                         style="max-height: 90px; width: auto; display: block; margin: 0 auto 10px auto;"/>
+                                         style="max-height: 90px; width: auto; display: block; margin: 0 auto 15px auto;"/>
                                 </t>
                                 <div style="border-top: 1px solid #000; width: 280px; margin: 0 auto;"></div>
-                                <div style="margin-top: 8px; font-weight: bold; font-size: 14px;">
+                                <div style="margin-top: 10px; font-weight: bold; font-size: 14px;">
                                     ผู้อนุมัติ / Approved by
                                 </div>
                             </td>
 
-                            <td width="50%" style="text-align: center; vertical-align: bottom; padding-bottom: 20px;">
+                            <td width="50%" style="text-align: center; padding: 20px;">
                                 <div style="height: 90px; display: flex; align-items: end; justify-content: center;">
                                     <strong style="font-size: 16px;">
                                         <span t-field="o.date_approve" t-options='{"widget": "date"}'/>
                                     </strong>
                                 </div>
-                                <div style="border-top: 1px solid #000; width: 180px; margin: 10px auto 0 auto;"></div>
-                                <div style="margin-top: 8px; font-weight: bold; font-size: 14px;">
+                                <div style="border-top: 1px solid #000; width: 180px; margin: 15px auto 0 auto;"></div>
+                                <div style="margin-top: 10px; font-weight: bold; font-size: 14px;">
                                     วันที่อนุมัติ / Approval Date
                                 </div>
                             </td>
