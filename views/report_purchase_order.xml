@@ -20,7 +20,8 @@
                                         <img t-att-src="image_data_uri(o.x_studio_approval_signature)" style="max-height: 90px; min-height: 90px; width: auto; display: block; margin: 0 auto 15px auto;"/>
                                     </t>
                                     <t t-else="">
-                                        <div style="height: 90px; width: 100%;"></div> <!-- Placeholder for missing signature -->
+                                        <div style="height: 90px; width: 100%;"></div>
+                                        <!-- Placeholder for missing signature -->
                                     </t>
                                 </div>
                                 <div style="border-top: 1px solid #000; width: 280px; margin: 0 auto;"/>
@@ -43,20 +44,17 @@
                     </table>
                 </div>
             </xpath>
-
         </template>
-
         <!-- Fix the 42px top padding on address block (works on all reports) -->
         <template id="bml_address_padding_fix" 
                   inherit_id="web.address_layout" 
                   name="BML - Remove address top padding" 
                   priority="100">
-
-            <!-- This XPath matches the div no matter the class order or extra classes -->
-            <xpath expr="//div[t-if='address']" position="attributes">
+            <!-- This matches the div EXACTLY as it is written in the source template -->
+            <xpath expr="//div[@t-if=&#x22;address&#x22;]" position="attributes">
                 <attribute name="style">padding-top: 0 !important; margin-top: 0 !important;</attribute>
+                <attribute name="class">address row mb-0</attribute>
             </xpath>
-
         </template>
     </data>
 </odoo>
