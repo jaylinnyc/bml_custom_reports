@@ -72,8 +72,7 @@
                   name="Custom ISO Footer - Purchase Order Only">
 
             <!-- CORRECT: Use single quotes inside double quotes (standard Odoo way) -->
-            <xpath expr="//div[contains(@class, 'footer')]//div[contains(@class, 'o_footer_content')]" position="inside">
-
+            <xpath expr="//div[contains(@class, 'footer')]/div[not(@t-if) and not(@t-else)]" position="inside">
                 <t t-set="model_name" t-value="o._name if o else False"/>
 
                 <t t-if="model_name == 'purchase.order'">
