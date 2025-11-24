@@ -27,30 +27,47 @@
 
             <!-- 3. SIGNATURE (LEFT): Insert BEFORE totals -->
             <xpath expr="//div[@id='total']/div[1]" position="before">
-                <div class="float-start" style="float: left; width: 48%; text-align: center; min-height: 130px; padding-right: 20px; box-sizing: border-box;">
+               <!-- Parent wrapper: Float Left, width 48% -->
+                <div class="float-start" style="float: left; width: 48%; padding-right: 10px; box-sizing: border-box;">
                     
-                    <!-- Signature Image Area -->
-                    <div style="display: flex; flex-direction: column; justify-content: flex-end; align-items: center; min-height: 80px;">
-                        <t t-if="o.x_studio_approval_signature">
-                            <img t-att-src="image_data_uri(o.x_studio_approval_signature)" 
-                                 style="max-height: 75px; width: auto; object-fit: contain;"/>
-                        </t>
-                        <t t-else="">
-                            <div style="height: 75px;"/>
-                        </t>
-                    </div>
+                    <!-- Bootstrap Row to create 2 columns inside the wrapper -->
+                    <div class="row m-0">
+                        
+                        <!-- COLUMN 1: Signature -->
+                        <div class="col-6 text-center px-1">
+                            <!-- Image Holder (Fixed Height for alignment) -->
+                            <div style="height: 80px; display: flex; align-items: flex-end; justify-content: center;">
+                                <t t-if="o.x_studio_approval_signature">
+                                    <img t-att-src="image_data_uri(o.x_studio_approval_signature)" style="max-height: 75px; width: auto; object-fit: contain; margin-bottom: 2px;"/>
+                                </t>
+                            </div>
+                            <!-- Line -->
+                            <div style="border-top: 1px solid black; width: 100%; margin: 5px auto;"/>
+                            <!-- Label -->
+                            <span style="font-size: 11px;">ผู้อนุมัติ / Approved by</span>
+                        </div>
 
-                    <!-- Underline -->
-                    <div style="border-top: 1px solid black; width: 200px; margin: 5px auto;"/>
+                        <!-- COLUMN 2: Date -->
+                        <div class="col-6 text-center px-1">
+                            <!-- Date Holder (Matches Signature Height) -->
+                            <div style="height: 80px; position: relative;">
+                                <div style="position: absolute; bottom: 3px; left: 0; right: 0; width: 100%;">
+                                    <t t-if="o.date_approve">
+                                        <strong style="font-size: 14px;">
+                                            <span t-field="o.date_approve" t-options="{&quot;widget&quot;: &quot;date&quot;}"/>
+                                        </strong>
+                                    </t>
+                                    <t t-else="">
+                                        <span style="color: #eee;">.</span> 
+                                    </t>
+                                </div>
+                            </div>
+                            <!-- Line -->
+                            <div style="border-top: 1px solid black; width: 100%; margin: 5px auto;"/>
+                            <!-- Label -->
+                            <span style="font-size: 11px;">วันที่อนุมัติ / Approval Date</span>
+                        </div>
 
-                    <!-- Signature Text -->
-                    <div style="font-size: 12px; line-height: 1.4;">
-                        ผู้อนุมัติ / Approved by
-                        <t t-if="o.date_approve">
-                            <br/>
-                            <span t-field="o.date_approve" t-options="{&quot;widget&quot;: &quot;date&quot;}"/>
-                            <br/>วันที่อนุมัติ / Approval Date
-                        </t>
                     </div>
                 </div>
             </xpath>
