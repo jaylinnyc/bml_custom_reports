@@ -3,6 +3,39 @@
     <data noupdate="0">
 
         <!-- ======================================================= -->
+        <!-- 1. FORM VIEW EXTENSION (Signatures below Terms & Conditions) -->
+        <!-- ======================================================= -->
+        <record id="view_purchase_order_form_inherit_signatures" model="ir.ui.view">
+            <field name="name">purchase.order.form.inherit.signatures</field>
+            <field name="model">purchase.order</field>
+            <field name="inherit_id" ref="purchase.purchase_order_form"/>
+            <field name="arch" type="xml">
+                <!-- TARGET: The 'notes' field (Terms and Conditions) -->
+                <!-- ACTION: Insert AFTER it -->
+                <xpath expr="//field[@name='notes']" position="after">
+                    
+                    <group string="Signatures &amp; Approvals" name="signatures_group">
+                        
+                        <!-- REQUESTER: Only visible in 'draft' state (RFQ) -->
+                        <group string="Requester" invisible="state != 'draft'">
+                            <field name="x_studio_requester_printed_name" placeholder="e.g. John Doe"/>
+                            <field name="x_studio_requester_signature" widget="signature"/>
+                            <field name="x_studio_request_date"/>
+                        </group>
+                        
+                        <!-- APPROVER: Visible always -->
+                        <group string="Approver">
+                            <field name="x_studio_approval_signature" widget="signature"/>
+                            <!-- Standard date_approve is usually read-only or handled by workflow -->
+                            <field name="date_approve" readonly="1"/>
+                        </group>
+                    </group>
+
+                </xpath>
+            </field>
+        </record>
+
+        <!-- ======================================================= -->
         <!-- 1. PURCHASE ORDER (Confirmed) - Signature Left / Totals Right -->
         <!-- ======================================================= -->
         <template id="bml_po_signature_side_by_side"
@@ -79,10 +112,17 @@
                         <!-- LEFT COLUMN: REQUESTER (Purchase Representative) -->
                         <div class="col-6">
                             <div class="text-center" style="width: 90%; margin: 0 auto;">
-                                <!-- Space for Manual Signature (80px height) -->
+                                
+                                <!-- REQUESTER SIGNATURE IMAGE -->
                                 <div style="height: 80px; display: flex; align-items: flex-end; justify-content: center;">
-                                    <!-- Use o.user_id.signature if you have a digital field, otherwise blank for manual sign -->
-                                    <span style="color: #eee;">.</span>
+                                    <t t-if="o.x_studio_requester_signature">
+                                        <img t-att-src="image_data_uri(o.x_studio_requester_signature)" 
+                                             style="max-height: 75px; width: auto; object-fit: contain; margin-bottom: 2px;"/>
+                                    </t>
+                                    <t t-else="">
+                                        <!-- Placeholder -->
+                                        <span style="color: #eee;">.</span>
+                                    </t>
                                 </div>
                                 
                                 <!-- Line -->
@@ -91,10 +131,26 @@
                                 <!-- Details -->
                                 <span style="font-size: 11px;">ผู้ขอซื้อ / Requested by</span>
                                 <br/>
-                                <span t-field="o.user_id.name" style="font-weight: bold;"/>
+                                
+                                <!-- Use PRINTED NAME field -->
+                                <t t-if="o.x_studio_requester_printed_name">
+                                    <span t-field="o.x_studio_requester_printed_name" style="font-weight: bold;"/>
+                                </t>
+                                <t t-else="">
+                                    <!-- Fallback to blank line if they haven't typed it yet -->
+                                    <span>____________________</span>
+                                </t>
+
                                 <br/>
                                 <span style="font-size: 11px;">วันที่ / Date: </span>
-                                <span t-field="o.date_order" t-options='{"widget": "date"}'/>
+                                
+                                <!-- Logic: Use x_studio_request_date if set, otherwise fallback to date_order -->
+                                <t t-if="o.x_studio_request_date">
+                                    <span t-field="o.x_studio_request_date" t-options='{"widget": "date"}'/>
+                                </t>
+                                <t t-else="">
+                                    <span t-field="o.date_order" t-options='{"widget": "date"}'/>
+                                </t>
                             </div>
                         </div>
 

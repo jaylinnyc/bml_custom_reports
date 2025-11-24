@@ -17,6 +17,11 @@ class PurchaseOrder(models.Model):
         attachment=True,
         help="Digital signature of the person requesting the purchase"
     )
+    
+    x_studio_requester_printed_name = fields.Char(
+        string="Requester Name (Printed)",
+        help="The name of the requester to appear on the printed report"
+    )
 
     x_studio_request_date = fields.Date(
         string="Request Date",
