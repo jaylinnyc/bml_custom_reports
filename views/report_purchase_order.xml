@@ -67,5 +67,30 @@
             </xpath>
         </template>
 
+        <template id="external_layout_boxed_footer"
+              inherit_id="web.external_layout_boxed"
+              name="Custom ISO Footer">
+
+            <!-- Correct XPath: double quotes + contains() -->
+            <xpath expr="//div[contains(@class, &quot;footer&quot;)]//div[contains(@class, &quot;o_footer_content&quot;)]" position="inside">
+
+                <!-- This is the ONLY safe way in QWeb: use t-set + t-if without any Python functions -->
+                <t t-set="model_name" t-value="o._name if o else False"/>
+
+                <t t-if="model_name == 'purchase.order'">
+                    <!-- Force a full-width new row that breaks to the next line -->
+                    <div class="w-100"></div>
+                    <div class="row mt-2">
+                        <div class="col-12 text-end">
+                            <small class="text-muted">
+                                F-10-05 ฉบับ 04 วันที่บังคับใช้ 19 พ.ย.68
+                            </small>
+                        </div>
+                    </div>
+                </t>
+
+            </xpath>
+        </template>
+
     </data>
 </odoo>
