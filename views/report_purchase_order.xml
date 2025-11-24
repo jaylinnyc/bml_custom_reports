@@ -8,51 +8,42 @@
                   name="BML - PO Signature left + Totals right"
                   priority="50">
 
-            <!-- Remove payment terms after notes -->
-            <xpath expr="//p[@t-field=&quot;o.note&quot;]/following::strong[1]" position="replace"/>
-            <!-- <xpath expr="//p[@t-field=&quot;o.note&quot;]/following::span[@t-field=&quot;o.payment_term_id&quot;][1]" position="replace"/> -->
+            <!-- Optional: remove payment terms line -->
+            <xpath expr="//p[@t-field='o.note']/following::strong[1]" position="replace"/>
 
-            <!-- Fix alignment + remove mt-n3 and any gap -->
-            <xpath expr="//div[@id=&quot;total&quot;]" position="attributes">
-                <attribute name="class">row justify-content-between align-items-start mt-2</attribute>
+            <!-- 1. Make the container clear floats (critical for wkhtmltopdf) -->
+            <xpath expr="//div[@id='total']" position="attributes">
+                <attribute name="class">mt-4</attribute>
+                <attribute name="style">overflow: hidden; zoom: 1; min-height: 140px;</attribute>
             </xpath>
 
-
-            <!-- Fix original totals column - SAFE QUOTES -->
-            <xpath expr="//div[@id=&quot;total&quot;]/div[1]" position="attributes">
-                <attribute name="class">col-6 ms-auto</attribute>
-            </xpath>
-
-            <!-- Insert signature block BEFORE the original totals column - SAFE QUOTES -->
-            <xpath expr="//div[@id=&quot;total&quot;]/div[1]" position="before">
-                <div class="col-6 text-center" style="page-break-inside: avoid;">
-                    <div style="height: 90px; display: flex; align-items: end; justify-content: center;">
+            <!-- 2. Insert signature on the LEFT using float left -->
+            <xpath expr="//div[@id='total']/div[1]" position="before">
+                <div style="float: left; width: 48%; text-align: center; min-height: 130px; padding-right: 20px; box-sizing: border-box;">
+                    <div style="display: flex; flex-direction: column; justify-content: end; min-height: 75px;">
                         <t t-if="o.x_studio_approval_signature">
-                            <img t-att-src="image_data_uri(o.x_studio_approval_signature)"
-                                 style="max-height: 90px; width: auto; object-fit: contain;"/>
+                            <img t-att-src="image_data_uri(o.x_studio_approval_signature)" style="max-height: 70px; width: auto; object-fit: contain;"/>
                         </t>
                         <t t-else="">
-                            <div style="height: 90px; width: 280px;"></div>
+                            <div style="height: 70px;"/>
                         </t>
                     </div>
-                    <div style="border-top: 2px solid #000; width: 280px; margin: 8px auto 4px auto;"></div>
-                    <div style="font-weight: bold; font-size: 13px;">
+                    <div style="border-top: 2px solid black; width: 260px; margin: 8px auto 4px;"/>
+                    <div style="font-size: 12px; line-height: 1.4;">
                         ผู้อนุมัติ / Approved by
-                    </div>
-                    <t t-if="o.date_approve">
-                        <div class="mt-2">
-                            <strong style="font-size: 15px;">
-                                <span t-field="o.date_approve" t-options="{&quot;widget&quot;: &quot;date&quot;}"/>
-                            </strong>
+                        <t t-if="o.date_approve">
                             <br/>
-                            <span style="font-weight: bold; font-size: 13px;">
-                                วันที่อนุมัติ / Approval Date
-                            </span>
-                        </div>
-                    </t>
+                            <span t-field="o.date_approve" t-options="{&quot;widget&quot;: &quot;date&quot;}"/>
+                            <br/>วันที่อนุมัติ / Approval Date
+                        </t>
+                    </div>
                 </div>
             </xpath>
 
+            <!-- 3. Force original totals to the RIGHT using float right -->
+            <xpath expr="//div[@id='total']/div[1]" position="attributes">
+                <attribute name="style">float: right; width: 50%; min-width: 300px; margin: 0 !important;</attribute>
+            </xpath>
 
         </template>
 
