@@ -17,6 +17,12 @@
                 <attribute name="class">row justify-content-between align-items-start mt-2</attribute>
             </xpath>
 
+
+            <!-- Fix original totals column - SAFE QUOTES -->
+            <xpath expr="//div[@id=&quot;total&quot;]/div[@class=&quot;col-4&quot;]" position="attributes">
+                <attribute name="class">col-auto ms-auto</attribute>
+            </xpath>
+
             <!-- Insert signature block BEFORE the original totals column - SAFE QUOTES -->
             <xpath expr="//div[@id=&quot;total&quot;]/div[@class=&quot;col-4&quot;]" position="before">
                 <div class="col-auto text-center" style="page-break-inside: avoid;">
@@ -47,10 +53,6 @@
                 </div>
             </xpath>
 
-            <!-- Fix original totals column - SAFE QUOTES -->
-            <xpath expr="//div[@id=&quot;total&quot;]/div[@class=&quot;col-4&quot;]" position="attributes">
-                <attribute name="class">col-auto ms-auto</attribute>
-            </xpath>
 
         </template>
 
