@@ -2,7 +2,9 @@
 <odoo>
     <data noupdate="0">
 
-        <!-- BML - Signature left, Totals right -->
+        <!-- ======================================================= -->
+        <!-- 1. PURCHASE ORDER (Confirmed) - Signature Left / Totals Right -->
+        <!-- ======================================================= -->
         <template id="bml_po_signature_side_by_side"
                   inherit_id="purchase.report_purchaseorder_document"
                   name="BML - PO Signature left + Totals right"
@@ -11,45 +13,35 @@
             <!-- Optional: remove payment terms line -->
             <xpath expr="//p[@t-field='o.note']/following::strong[1]" position="replace"/>
 
-            <!-- 1. PARENT: Clear floats so the container expands to fit both columns -->
+            <!-- 1. PARENT: Clear floats -->
             <xpath expr="//div[@id='total']" position="attributes">
-                <attribute name="class">mt-4 clearfix</attribute> <!-- clearfix is safer than overflow:hidden for print -->
+                <attribute name="class">mt-4 clearfix</attribute>
                 <attribute name="style">min-height: 150px;</attribute>
             </xpath>
 
-            <!-- 2. TOTALS (RIGHT): Force Float Right & REMOVE Bootstrap Grid Classes -->
+            <!-- 2. TOTALS (RIGHT): Force Float Right -->
             <xpath expr="//div[@id='total']/div[1]" position="attributes">
-                <!-- CRITICAL FIX: Overwrite 'class' to remove 'col-12 col-md-5' etc. -->
                 <attribute name="class">float-end</attribute>
-                <!-- Force width and float -->
                 <attribute name="style">float: right; width: 50%; min-width: 300px; margin: 0 !important; padding: 0;</attribute>
             </xpath>
 
-            <!-- 3. SIGNATURE (LEFT): Insert BEFORE totals -->
+            <!-- 3. SIGNATURE & DATE (LEFT): Split into 2 columns -->
             <xpath expr="//div[@id='total']/div[1]" position="before">
-               <!-- Parent wrapper: Float Left, width 48% -->
                 <div class="float-start" style="float: left; width: 48%; padding-right: 10px; box-sizing: border-box;">
-                    
-                    <!-- Bootstrap Row to create 2 columns inside the wrapper -->
                     <div class="row m-0">
-                        
-                        <!-- COLUMN 1: Signature -->
+                        <!-- Signature Col -->
                         <div class="col-6 text-center px-1">
-                            <!-- Image Holder (Fixed Height for alignment) -->
                             <div style="height: 80px; display: flex; align-items: flex-end; justify-content: center;">
                                 <t t-if="o.x_studio_approval_signature">
-                                    <img t-att-src="image_data_uri(o.x_studio_approval_signature)" style="max-height: 75px; width: auto; object-fit: contain; margin-bottom: 2px;"/>
+                                    <img t-att-src="image_data_uri(o.x_studio_approval_signature)" 
+                                         style="max-height: 75px; width: auto; object-fit: contain; margin-bottom: 2px;"/>
                                 </t>
                             </div>
-                            <!-- Line -->
                             <div style="border-top: 1px solid black; width: 100%; margin: 5px auto;"/>
-                            <!-- Label -->
                             <span style="font-size: 11px;">ผู้อนุมัติ / Approved by</span>
                         </div>
-
-                        <!-- COLUMN 2: Date -->
+                        <!-- Date Col -->
                         <div class="col-6 text-center px-1">
-                            <!-- Date Holder (Matches Signature Height) -->
                             <div style="height: 80px; position: relative;">
                                 <div style="position: absolute; bottom: 3px; left: 0; right: 0; width: 100%;">
                                     <t t-if="o.date_approve">
@@ -62,19 +54,91 @@
                                     </t>
                                 </div>
                             </div>
-                            <!-- Line -->
                             <div style="border-top: 1px solid black; width: 100%; margin: 5px auto;"/>
-                            <!-- Label -->
                             <span style="font-size: 11px;">วันที่อนุมัติ / Approval Date</span>
                         </div>
-
                     </div>
                 </div>
             </xpath>
-
         </template>
 
-        <!-- Address padding fix -->
+
+        <!-- ======================================================= -->
+        <!-- 2. REQUEST FOR QUOTATION (RFQ) - Dual Signatures        -->
+        <!-- ======================================================= -->
+        <template id="bml_rfq_signature_block"
+                  inherit_id="purchase.report_purchasequotation_document"
+                  name="BML - RFQ Signature Block (Requester + Approver)"
+                  priority="50">
+            
+            <!-- Insert at the end of the page content -->
+            <xpath expr="//div[hasclass('page')]" position="inside">
+                <div class="mt-5" style="page-break-inside: avoid;">
+                    
+                    <div class="row">
+                        <!-- LEFT COLUMN: REQUESTER (Purchase Representative) -->
+                        <div class="col-6">
+                            <div class="text-center" style="width: 90%; margin: 0 auto;">
+                                <!-- Space for Manual Signature (80px height) -->
+                                <div style="height: 80px; display: flex; align-items: flex-end; justify-content: center;">
+                                    <!-- Use o.user_id.signature if you have a digital field, otherwise blank for manual sign -->
+                                    <span style="color: #eee;">.</span>
+                                </div>
+                                
+                                <!-- Line -->
+                                <div style="border-top: 1px solid black; width: 100%; margin: 5px auto;"/>
+                                
+                                <!-- Details -->
+                                <span style="font-size: 11px;">ผู้ขอซื้อ / Requested by</span>
+                                <br/>
+                                <span t-field="o.user_id.name" style="font-weight: bold;"/>
+                                <br/>
+                                <span style="font-size: 11px;">วันที่ / Date: </span>
+                                <span t-field="o.date_order" t-options='{"widget": "date"}'/>
+                            </div>
+                        </div>
+
+                        <!-- RIGHT COLUMN: APPROVER (Manager) -->
+                        <div class="col-6">
+                            <div class="text-center" style="width: 90%; margin: 0 auto;">
+                                <!-- Image Holder -->
+                                <div style="height: 80px; display: flex; align-items: flex-end; justify-content: center;">
+                                    <t t-if="o.x_studio_approval_signature">
+                                        <img t-att-src="image_data_uri(o.x_studio_approval_signature)" 
+                                             style="max-height: 75px; width: auto; object-fit: contain; margin-bottom: 2px;"/>
+                                    </t>
+                                    <t t-else="">
+                                        <span style="color: #eee;">.</span>
+                                    </t>
+                                </div>
+
+                                <!-- Line -->
+                                <div style="border-top: 1px solid black; width: 100%; margin: 5px auto;"/>
+
+                                <!-- Details -->
+                                <span style="font-size: 11px;">ผู้อนุมัติ / Approved by</span>
+                                <br/>
+                                <!-- If approved, show date, else show placeholder line or empty -->
+                                <t t-if="o.date_approve">
+                                    <span style="font-size: 11px;">วันที่ / Date: </span>
+                                    <span t-field="o.date_approve" t-options='{"widget": "date"}'/>
+                                </t>
+                                <t t-else="">
+                                    <br/>
+                                    <span style="font-size: 11px;">วันที่ / Date: _________________</span>
+                                </t>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </xpath>
+        </template>
+
+
+        <!-- ======================================================= -->
+        <!-- 3. ADDRESS FIX (Removing Top Padding)                   -->
+        <!-- ======================================================= -->
         <template id="bml_address_padding_fix"
                   inherit_id="web.address_layout"
                   name="BML - Remove address top padding"
@@ -85,7 +149,10 @@
             </xpath>
         </template>
 
-        <!-- Footer -->
+
+        <!-- ======================================================= -->
+        <!-- 4. FOOTER (Purchase Order Specific)                     -->
+        <!-- ======================================================= -->
         <template id="external_layout_boxed_footer"
                   inherit_id="web.external_layout_boxed"
                   name="Custom ISO Footer - Purchase Order Only">
