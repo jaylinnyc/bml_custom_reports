@@ -19,12 +19,12 @@
 
 
             <!-- Fix original totals column - SAFE QUOTES -->
-            <xpath expr="//div[@id=&quot;total&quot;]/div[@class=&quot;col-4&quot;]" position="attributes">
-                <attribute name="class">col-auto ms-auto</attribute>
+            <xpath expr="//div[@id=&quot;total&quot;]/div[1]" position="attributes">
+                <attribute name="class">col-5 ms-auto</attribute>
             </xpath>
 
             <!-- Insert signature block BEFORE the original totals column - SAFE QUOTES -->
-            <xpath expr="//div[@id=&quot;total&quot;]/div[@class=&quot;col-4&quot;]" position="before">
+            <xpath expr="//div[@id=&quot;total&quot;]/div[1]" position="before">
                 <div class="col-auto text-center" style="page-break-inside: avoid;">
                     <div style="height: 80px; display: flex; align-items: end; justify-content: center;">
                         <t t-if="o.x_studio_approval_signature">
