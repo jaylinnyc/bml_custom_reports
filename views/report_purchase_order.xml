@@ -20,19 +20,19 @@
 
             <!-- Fix original totals column - SAFE QUOTES -->
             <xpath expr="//div[@id=&quot;total&quot;]/div[1]" position="attributes">
-                <attribute name="class">col-5 ms-auto</attribute>
+                <attribute name="class">col-6 ms-auto</attribute>
             </xpath>
 
             <!-- Insert signature block BEFORE the original totals column - SAFE QUOTES -->
             <xpath expr="//div[@id=&quot;total&quot;]/div[1]" position="before">
-                <div class="col-auto text-center" style="page-break-inside: avoid;">
-                    <div style="height: 80px; display: flex; align-items: end; justify-content: center;">
+                <div class="col-6 text-center" style="page-break-inside: avoid;">
+                    <div style="height: 90px; display: flex; align-items: end; justify-content: center;">
                         <t t-if="o.x_studio_approval_signature">
                             <img t-att-src="image_data_uri(o.x_studio_approval_signature)"
-                                 style="max-height: 80px; width: auto; object-fit: contain;"/>
+                                 style="max-height: 90px; width: auto; object-fit: contain;"/>
                         </t>
                         <t t-else="">
-                            <div style="height: 80px; width: 280px;"></div>
+                            <div style="height: 90px; width: 280px;"></div>
                         </t>
                     </div>
                     <div style="border-top: 2px solid #000; width: 280px; margin: 8px auto 4px auto;"></div>
