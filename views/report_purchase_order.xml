@@ -12,7 +12,7 @@
             <field name="arch" type="xml">
                 <!-- TARGET: The 'notes' field (Terms and Conditions) -->
                 <!-- ACTION: Insert AFTER it -->
-                <xpath expr="//field[@name='notes']" position="after">
+                <xpath expr="//page[@name='products']/div[hasclass('clearfix')]" position="before">
                     
                     <group string="Signatures &amp; Approvals" name="signatures_group">
                         
