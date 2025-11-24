@@ -2,7 +2,7 @@
 <odoo>
     <data noupdate="0">
 
-        <!-- BML - Signature left, Totals right - FINAL WORKING VERSION -->
+        <!-- BML - Signature left, Totals right -->
         <template id="bml_po_signature_side_by_side"
                   inherit_id="purchase.report_purchaseorder_document"
                   name="BML - PO Signature left + Totals right"
@@ -11,24 +11,39 @@
             <!-- Optional: remove payment terms line -->
             <xpath expr="//p[@t-field='o.note']/following::strong[1]" position="replace"/>
 
-            <!-- 1. Make the container clear floats (critical for wkhtmltopdf) -->
+            <!-- 1. PARENT: Clear floats so the container expands to fit both columns -->
             <xpath expr="//div[@id='total']" position="attributes">
-                <attribute name="class">mt-4</attribute>
-                <attribute name="style">overflow: hidden; zoom: 1; min-height: 140px;</attribute>
+                <attribute name="class">mt-4 clearfix</attribute> <!-- clearfix is safer than overflow:hidden for print -->
+                <attribute name="style">min-height: 150px;</attribute>
             </xpath>
 
-            <!-- 2. Insert signature on the LEFT using float left -->
+            <!-- 2. TOTALS (RIGHT): Force Float Right & REMOVE Bootstrap Grid Classes -->
+            <xpath expr="//div[@id='total']/div[1]" position="attributes">
+                <!-- CRITICAL FIX: Overwrite 'class' to remove 'col-12 col-md-5' etc. -->
+                <attribute name="class">float-end</attribute>
+                <!-- Force width and float -->
+                <attribute name="style">float: right; width: 50%; min-width: 300px; margin: 0 !important; padding: 0;</attribute>
+            </xpath>
+
+            <!-- 3. SIGNATURE (LEFT): Insert BEFORE totals -->
             <xpath expr="//div[@id='total']/div[1]" position="before">
-                <div style="float: left; width: 48%; text-align: center; min-height: 130px; padding-right: 20px; box-sizing: border-box;">
-                    <div style="display: flex; flex-direction: column; justify-content: end; min-height: 75px;">
+                <div class="float-start" style="float: left; width: 48%; text-align: center; min-height: 130px; padding-right: 20px; box-sizing: border-box;">
+                    
+                    <!-- Signature Image Area -->
+                    <div style="display: flex; flex-direction: column; justify-content: flex-end; align-items: center; min-height: 80px;">
                         <t t-if="o.x_studio_approval_signature">
-                            <img t-att-src="image_data_uri(o.x_studio_approval_signature)" style="max-height: 70px; width: auto; object-fit: contain;"/>
+                            <img t-att-src="image_data_uri(o.x_studio_approval_signature)" 
+                                 style="max-height: 75px; width: auto; object-fit: contain;"/>
                         </t>
                         <t t-else="">
-                            <div style="height: 70px;"/>
+                            <div style="height: 75px;"/>
                         </t>
                     </div>
-                    <div style="border-top: 2px solid black; width: 260px; margin: 8px auto 4px;"/>
+
+                    <!-- Underline -->
+                    <div style="border-top: 1px solid black; width: 200px; margin: 5px auto;"/>
+
+                    <!-- Signature Text -->
                     <div style="font-size: 12px; line-height: 1.4;">
                         ผู้อนุมัติ / Approved by
                         <t t-if="o.date_approve">
@@ -40,14 +55,9 @@
                 </div>
             </xpath>
 
-            <!-- 3. Force original totals to the RIGHT using float right -->
-            <xpath expr="//div[@id='total']/div[1]" position="attributes">
-                <attribute name="style">float: right; width: 50%; min-width: 300px; margin: 0 !important;</attribute>
-            </xpath>
-
         </template>
 
-        <!-- Address padding fix - unchanged and safe -->
+        <!-- Address padding fix -->
         <template id="bml_address_padding_fix"
                   inherit_id="web.address_layout"
                   name="BML - Remove address top padding"
@@ -58,14 +68,12 @@
             </xpath>
         </template>
 
+        <!-- Footer -->
         <template id="external_layout_boxed_footer"
                   inherit_id="web.external_layout_boxed"
                   name="Custom ISO Footer - Purchase Order Only">
-
-            <!-- CORRECT: Use single quotes inside double quotes (standard Odoo way) -->
             <xpath expr="//div[contains(@class, 'footer')]/div[not(@t-if) and not(@t-else)]" position="inside">
                 <t t-set="model_name" t-value="o._name if o else False"/>
-
                 <t t-if="model_name == 'purchase.order'">
                     <div class="w-100"></div>
                     <div class="row">
