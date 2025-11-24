@@ -43,8 +43,10 @@
                   name="BML - PO Signature left + Totals right"
                   priority="50">
 
-            <!-- Optional: remove payment terms line -->
+            <!-- Remove 'Payment Terms:' label -->
             <xpath expr="//p[@t-field='o.note']/following::strong[1]" position="replace"/>
+            <!-- Remove the actual payment term value (e.g. '30 Days') -->
+            <xpath expr="//p[@t-field='o.note']/following::span[@t-field='o.payment_term_id']" position="replace"/>
 
             <!-- 1. PARENT: Clear floats -->
             <xpath expr="//div[@id='total']" position="attributes">
