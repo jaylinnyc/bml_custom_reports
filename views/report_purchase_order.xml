@@ -2,31 +2,31 @@
 <odoo>
     <data noupdate="0">
 
-        <!-- BML - Signature left, Totals right (FIXED - no more Unicode/XML error) -->
+        <!-- BML - Signature left, Totals right - FINAL WORKING VERSION -->
         <template id="bml_po_signature_side_by_side"
                   inherit_id="purchase.report_purchaseorder_document"
                   name="BML - PO Signature left + Totals right"
                   priority="50">
 
-            <!-- Remove payment terms after the notes -->
+            <!-- Remove payment terms after notes -->
             <xpath expr="//p[@t-field=&quot;o.note&quot;]/following::strong[1]" position="replace"/>
             <!-- <xpath expr="//p[@t-field=&quot;o.note&quot;]/following::span[@t-field=&quot;o.payment_term_id&quot;][1]" position="replace"/> -->
 
-            <!-- FINAL FIX: align-items-start = both blocks start from the top -->
-            <xpath expr="//div[@id='total']" position="attributes">
-                <attribute name="class">row justify-content-between align-items-start</attribute>
+            <!-- Fix alignment + remove mt-n3 and any gap -->
+            <xpath expr="//div[@id=&quot;total&quot;]" position="attributes">
+                <attribute name="class">row justify-content-between align-items-start mt-2</attribute>
             </xpath>
 
-            <!-- Insert signature block BEFORE totals -->
-            <xpath expr="//div[@id='total']/div[@class='col-4']" position="before">
+            <!-- Insert signature block BEFORE the original totals column - SAFE QUOTES -->
+            <xpath expr="//div[@id=&quot;total&quot;]/div[@class=&quot;col-4&quot;]" position="before">
                 <div class="col-auto text-center" style="page-break-inside: avoid;">
-                    <div style="height: 60px; display: flex; align-items: end; justify-content: center;">
+                    <div style="height: 80px; display: flex; align-items: end; justify-content: center;">
                         <t t-if="o.x_studio_approval_signature">
                             <img t-att-src="image_data_uri(o.x_studio_approval_signature)"
-                                style="max-height: 100px; width: auto; object-fit: contain;"/>
+                                 style="max-height: 80px; width: auto; object-fit: contain;"/>
                         </t>
                         <t t-else="">
-                            <div style="height: 100px; width: 280px;"></div>
+                            <div style="height: 80px; width: 280px;"></div>
                         </t>
                     </div>
                     <div style="border-top: 2px solid #000; width: 280px; margin: 8px auto 4px auto;"></div>
@@ -47,14 +47,14 @@
                 </div>
             </xpath>
 
-            <!-- Keep totals right-aligned and auto-width -->
-            <xpath expr="//div[@id='total']/div[@class='col-4']" position="attributes">
+            <!-- Fix original totals column - SAFE QUOTES -->
+            <xpath expr="//div[@id=&quot;total&quot;]/div[@class=&quot;col-4&quot;]" position="attributes">
                 <attribute name="class">col-auto ms-auto</attribute>
             </xpath>
 
         </template>
 
-        <!-- Fix the 42px top padding on address block (works on all reports) -->
+        <!-- Address padding fix - unchanged and safe -->
         <template id="bml_address_padding_fix"
                   inherit_id="web.address_layout"
                   name="BML - Remove address top padding"
