@@ -10,7 +10,7 @@
 
             <!-- Remove payment terms after the notes -->
             <xpath expr="//p[@t-field=&quot;o.note&quot;]/following::strong[1]" position="replace"/>
-            <xpath expr="//p[@t-field=&quot;o.note&quot;]/following::span[@t-field=&quot;o.payment_term_id&quot;][1]" position="replace"/>
+            <!-- <xpath expr="//p[@t-field=&quot;o.note&quot;]/following::span[@t-field=&quot;o.payment_term_id&quot;][1]" position="replace"/> -->
 
             <!-- FINAL FIX: align-items-start = both blocks start from the top -->
             <xpath expr="//div[@id='total']" position="attributes">
