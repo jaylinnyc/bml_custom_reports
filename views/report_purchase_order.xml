@@ -32,11 +32,21 @@
                     </group>
 
                 </xpath>
+            </field>
+        </record>
 
-                <!-- Add button to print RFQ report for confirmed POs -->
-                <xpath expr="//header" position="inside">
-                    <button name="%(purchase.report_purchase_quotation)d" string="Print Purchase Quotation" type="action" invisible="state not in ('purchase', 'done')"/>
-                </xpath>
+        <!-- Add server action to print RFQ report from Action menu -->
+        <record id="action_print_as_rfq" model="ir.actions.server">
+            <field name="name">Print PO Quotation</field>
+            <field name="type">ir.actions.server</field>
+            <field name="model_id" ref="purchase.model_purchase_order"/>
+            <field name="binding_model_id" ref="purchase.model_purchase_order"/>
+            <field name="binding_view_types">form</field>
+            <field name="state">code</field>
+            <field name="code">
+if record.state not in ('purchase', 'done'):
+    raise UserError("This action is only available for confirmed purchase orders.")
+action = env.ref('purchase.report_purchase_quotation').report_action(record)
             </field>
         </record>
 
