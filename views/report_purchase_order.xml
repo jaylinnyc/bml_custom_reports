@@ -43,11 +43,8 @@
                   name="BML - PO Signature left + Totals right"
                   priority="50">
 
-            <xpath expr="//t[@t-set='o']" position="after">
-                <t t-set="o" t-value="o.with_context(bml_doc_type='po')"/>
-            </xpath>
-            <xpath expr="//t[@t-call='web.external_layout']" position="before">
-                <t t-set="o" t-value="o.with_context(bml_doc_type='po')"/>
+            <xpath expr="//div[hasclass('page')]" position="before">
+                <t t-set="bml_doc_type" t-value="'po'"/>
             </xpath>
 
             <!-- Remove 'Payment Terms:' label -->
@@ -113,11 +110,8 @@
                   name="BML - RFQ Signature Block (Requester + Approver)"
                   priority="50">
             
-            <xpath expr="//t[@t-set='o']" position="after">
-                <t t-set="o" t-value="o.with_context(bml_doc_type='rfq')"/>
-            </xpath>
-            <xpath expr="//t[@t-call='web.external_layout']" position="before">
-                <t t-set="o" t-value="o.with_context(bml_doc_type='rfq')"/>
+            <xpath expr="//div[hasclass('page')]" position="before">
+                <t t-set="bml_doc_type" t-value="'rfq'"/>
             </xpath>
 
             <!-- Insert at the end of the page content -->
@@ -229,37 +223,22 @@
                   inherit_id="web.external_layout_boxed"
                   name="Custom ISO Footer - Purchase Order Only">
             <xpath expr="//div[contains(@class, 'footer')]/div[not(@t-if) and not(@t-else)]" position="inside">
-                
                 <t t-set="model_name" t-value="o._name if o else False"/>
-
+                
                 <t t-if="model_name == 'purchase.order'">
-                    
-                    <t t-set="doc_type_flag" t-value="o.env.context.get('bml_doc_type')"/>
-
                     <div class="w-100"></div>
                     <div class="row">
                         <div class="col-12 text-end">
                             <small class="text-muted font-weight-medium">
                                 
-                                <t t-if="doc_type_flag == 'rfq'">
+                                <t t-if="bml_doc_type == 'rfq'">
                                     F-10-05 ฉบับ 04 วันที่บังคับใช้ 19 พ.ย.68
                                 </t>
                                 
-                                <t t-elif="doc_type_flag == 'po'">
-                                    PURCHASE ORDER : <br/>
+                                <t t-elif="bml_doc_type == 'po'">
                                     F-07-03 ฉบับที่ 01 วันที่บังคับใช้ 19 พ.ย.68
                                 </t>
                                 
-                                <t t-else="">
-                                    <t t-if="o.state in ['draft', 'sent', 'to approve']">
-                                        F-10-05 ฉบับ 04 วันที่บังคับใช้ 19 พ.ย.68
-                                    </t>
-                                    <t t-else="">
-                                        PURCHASE ORDER : <br/>
-                                        F-07-03 ฉบับที่ 01 วันที่บังคับใช้ 19 พ.ย.68
-                                    </t>
-                                </t>
-
                             </small>
                         </div>
                     </div>
