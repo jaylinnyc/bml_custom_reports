@@ -6,7 +6,7 @@
         <!-- VARIABLE PASSING TO EXTERNAL LAYOUTS                   -->
         <!-- ======================================================= -->
         <template id="bml_bridge_variable_external_layout" inherit_id="web.external_layout">
-            <xpath expr="//t[@t-if='company.external_report_layout_id']" position="attributes">
+            <xpath expr="//t[@t-call]" position="attributes">
                 <attribute name="t-with-bml_doc_type">bml_doc_type or False</attribute>
             </xpath>
         </template>
