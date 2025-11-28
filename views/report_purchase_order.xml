@@ -43,6 +43,10 @@
                   name="BML - PO Signature left + Totals right"
                   priority="50">
 
+            <xpath expr="//t[@t-call='web.external_layout']" position="attributes">
+                <attribute name="t-with-bml_doc_type">'po'</attribute>
+            </xpath>
+
             <!-- Remove 'Payment Terms:' label -->
             <xpath expr="//p[@t-field='o.note']/following::strong[1]" position="replace"/>
             <!-- Remove the actual payment term value (e.g. '30 Days') -->
@@ -106,6 +110,10 @@
                   name="BML - RFQ Signature Block (Requester + Approver)"
                   priority="50">
             
+            <xpath expr="//t[@t-call='web.external_layout']" position="attributes">
+                <attribute name="t-with-bml_doc_type">'rfq'</attribute>
+            </xpath>
+
             <!-- Insert at the end of the page content -->
             <xpath expr="//div[hasclass('page')]" position="inside">
                 <div class="mt-5" style="page-break-inside: avoid;">
@@ -216,18 +224,36 @@
                   name="Custom ISO Footer - Purchase Order Only">
             <xpath expr="//div[contains(@class, 'footer')]/div[not(@t-if) and not(@t-else)]" position="inside">
                 <t t-set="model_name" t-value="o._name if o else False"/>
+                
                 <t t-if="model_name == 'purchase.order'">
                     <div class="w-100"></div>
                     <div class="row">
                         <div class="col-12 text-end">
                             <small class="text-muted font-weight-medium">
-                                F-10-05 ฉบับ 04 วันที่บังคับใช้ 19 พ.ย.68
+                                
+                                <t t-if="bml_doc_type == 'rfq'">
+                                    F-10-05 ฉบับ 04 วันที่บังคับใช้ 19 พ.ย.68
+                                </t>
+                                
+                                <t t-elif="bml_doc_type == 'po'">
+                                    F-07-03 ฉบับที่ 01 วันที่บังคับใช้ 19 พ.ย.68
+                                </t>
+                                
+                                <t t-else="">
+                                    <t t-if="o.state in ['draft', 'sent', 'to approve']">
+                                        F-10-05 ฉบับ 04 วันที่บังคับใช้ 19 พ.ย.68
+                                    </t>
+                                    <t t-else="">
+                                        F-07-03 ฉบับที่ 01 วันที่บังคับใช้ 19 พ.ย.68
+                                    </t>
+                                </t>
+
                             </small>
                         </div>
                     </div>
                 </t>
             </xpath>
         </template>
-
+        
     </data>
 </odoo>
