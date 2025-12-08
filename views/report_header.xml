@@ -10,7 +10,8 @@
                   name="Custom Image Header Override"
                   priority="16">
             
-            <xpath expr="//div[contains(@class, 'header')]" position="replace">
+            <!-- Replace the header section with custom image if enabled -->
+            <xpath expr="//div[@class='header']" position="replace">
                 <div class="header">
                     <t t-set="company" t-value="o.company_id if hasattr(o, 'company_id') else res_company"/>
                     
