@@ -11,7 +11,7 @@
                   priority="16">
             
             <!-- Replace the header section with custom image if enabled -->
-            <xpath expr="//div[@class='header']" position="replace">
+            <xpath expr="//div[contains(@t-attf-class, 'header')]" position="replace">
                 <div class="header">
                     <t t-set="company" t-value="o.company_id if hasattr(o, 'company_id') else res_company"/>
                     
