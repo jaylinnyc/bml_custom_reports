@@ -65,9 +65,10 @@
                             <div t-if="o.picking_type_id.warehouse_id.partner_id" t-field="o.picking_type_id.warehouse_id.partner_id" t-options="{'widget': 'contact', 'fields': ['name'], 'no_marker': True}"/>
                             <div t-else="" t-field="o.picking_type_id.warehouse_id.name"/>
                         </div>
-                        <div t-if="o.picking_type_id.code == 'internal' and o.x_studio_requestist_name_1" class="col" name="div_contact">
+                        <t t-set="requestist_name" t-value="o.x_studio_requestist_name_1 if 'x_studio_requestist_name_1' in o._fields else o.x_studio_requestist_name if 'x_studio_requestist_name' in o._fields else False"/>
+                        <div t-if="o.picking_type_id.code == 'internal' and requestist_name" class="col" name="div_contact">
                             <strong>Requestist Name:</strong>
-                            <div t-field="o.x_studio_requestist_name_1" class="m-0"/>
+                            <div t-out="requestist_name" class="m-0"/>
                         </div>
                         <div name="div_state">
                             <strong>Status:</strong>
