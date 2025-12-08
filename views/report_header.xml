@@ -5,20 +5,19 @@
         <!-- CUSTOM HEADER OVERRIDE                                  -->
         <!-- ======================================================= -->
         
+        <!-- TEMPORARILY DISABLED: Will be enabled after module upgrade -->
+        <!-- Uncomment this template after the database columns are created -->
+        <!--
         <template id="external_layout_custom_header"
                   inherit_id="web.external_layout_boxed"
                   name="Custom Image Header Override"
                   priority="16">
             
-            <!-- Replace the entire header section with custom image if enabled -->
             <xpath expr="//div[contains(@class, 'header')]" position="replace">
                 <div class="header">
-                    <!-- Check if company has custom header enabled -->
                     <t t-set="company" t-value="o.company_id if hasattr(o, 'company_id') else res_company"/>
                     
-                    <!-- Check if custom header fields exist and are enabled -->
                     <t t-if="company and hasattr(company, 'use_custom_report_header') and company.use_custom_report_header and company.report_header_image">
-                        <!-- Custom Image Header -->
                         <div style="width: 100%; text-align: center; margin: 0; padding: 0;">
                             <img t-att-src="image_data_uri(company.report_header_image)"
                                  style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block; margin: 0 auto;"
@@ -26,7 +25,6 @@
                         </div>
                     </t>
                     <t t-else="">
-                        <!-- Standard Odoo Header (Fallback) -->
                         <div class="row">
                             <div class="col-3 mb4">
                                 <img t-if="company.logo" t-att-src="image_data_uri(company.logo)" 
@@ -49,6 +47,7 @@
                 </div>
             </xpath>
         </template>
+        -->
 
     </data>
 </odoo>

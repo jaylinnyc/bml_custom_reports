@@ -1,6 +1,6 @@
 {
     'name': 'Custom Reports',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.0',
     'summary': 'Custom PDF reports with configurable headers and footers',
     'author': 'Jaylinnyc',
     'depends': ['account', 'purchase', 'stock', 'web'],
@@ -16,5 +16,7 @@
         'data/report_footer_data.xml',       # default footer configurations
     ],
     'installable': True,
+    'application': False,
+    'auto_install': False,
     'license': 'OPL-1',
 }
