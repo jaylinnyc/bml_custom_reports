@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tree View -->
+    <record id="view_report_footer_config_tree" model="ir.ui.view">
+        <field name="name">bml.report.footer.config.tree</field>
+        <field name="model">bml.report.footer.config</field>
+        <field name="arch" type="xml">
+            <tree string="Report Footer Configurations">
+                <field name="name"/>
+                <field name="report_type"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="active"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_report_footer_config_form" model="ir.ui.view">
+        <field name="name">bml.report.footer.config.form</field>
+        <field name="model">bml.report.footer.config</field>
+        <field name="arch" type="xml">
+            <form string="Report Footer Configuration">
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <widget name="web_ribbon" title="Archived" bg_color="bg-danger" invisible="active"/>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="report_type"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="active" invisible="1"/>
+                        </group>
+                    </group>
+                    <group string="Footer Content">
+                        <group>
+                            <field name="footer_left" placeholder="e.g., บันทึก : จัดเก็บในแฟ้มเรียงตามลำดับเลขที่, วิธีการทำลายย่อย, ระยะเวลาจัดเก็บ 2 ปี, ผู้รับผิดชอบ PO."/>
+                        </group>
+                        <group>
+                            <field name="footer_right" placeholder="e.g., FM-PO-01-06 Rev.01 Eff. Date : 01/12/25"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_report_footer_config" model="ir.actions.act_window">
+        <field name="name">Report Footers</field>
+        <field name="res_model">bml.report.footer.config</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first report footer configuration
+            </p>
+            <p>
+                Configure ISO footer text for different report types.<br/>
+                Each report type can have custom left and right footer text.
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu Item under Settings -->
+    <menuitem id="menu_report_footer_config"
+              name="BML Report Footers"
+              parent="base.menu_administration"
+              action="action_report_footer_config"
+              sequence="100"/>
+</odoo>

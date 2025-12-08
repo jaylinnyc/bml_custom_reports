@@ -241,22 +241,35 @@ action = env.ref('purchase.report_purchase_quotation').report_action(record)
                 <t t-set="model_name" t-value="o._name if o else False"/>
                 
                 <t t-if="model_name == 'purchase.order'">
-                    <div class="w-100"></div>
-                    <div class="row">
-                        <div class="col-12 text-end">
-                            <small class="text-muted font-weight-medium">
-                                
-                                <t t-if="bml_doc_type == 'rfq'">
-                                    F-10-05 ฉบับ 04 วันที่บังคับใช้ 19 พ.ย.68
-                                </t>
-                                
-                                <t t-elif="bml_doc_type == 'po'">
-                                    F-07-03 ฉบับที่ 01 วันที่บังคับใช้ 19 พ.ย.68
-                                </t>
-                                
-                            </small>
+                    <!-- Determine report type based on bml_doc_type variable -->
+                    <t t-set="footer_report_type" t-value="'purchase_order_rfq' if bml_doc_type == 'rfq' else 'purchase_order_bill'"/>
+                    
+                    <!-- Fetch footer configuration from database -->
+                    <t t-set="footer_config" t-value="request.env['bml.report.footer.config'].sudo().search([
+                        ('report_type', '=', footer_report_type),
+                        ('company_id', '=', o.company_id.id),
+                        ('active', '=', True)
+                    ], limit=1)"/>
+                    
+                    <!-- Only display footer if configuration exists -->
+                    <t t-if="footer_config">
+                        <div class="w-100"></div>
+                        <div class="row">
+                            <!-- Left Column: Storage/Retention Notes -->
+                            <t t-if="footer_config.footer_left">
+                                <div class="col-6 text-start">
+                                    <small class="text-muted font-weight-medium" t-esc="footer_config.footer_left"/>
+                                </div>
+                            </t>
+                            
+                            <!-- Right Column: ISO Code and Metadata -->
+                            <t t-if="footer_config.footer_right">
+                                <div t-attf-class="col-#{6 if footer_config.footer_left else 12} text-end">
+                                    <small class="text-muted font-weight-medium" t-esc="footer_config.footer_right"/>
+                                </div>
+                            </t>
                         </div>
-                    </div>
+                    </t>
                 </t>
             </xpath>
         </template>

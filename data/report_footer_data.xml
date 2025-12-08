@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Sales - Tax Invoice (Empty placeholder for user to configure) -->
+        <record id="footer_config_sales_tax_invoice" model="bml.report.footer.config">
+            <field name="report_type">sales_tax_invoice</field>
+            <field name="footer_left"></field>
+            <field name="footer_right"></field>
+            <field name="active" eval="False"/>
+        </record>
+
+        <!-- Inventory - Consumption: ใบเบิก FM-ST-01-04 -->
+        <record id="footer_config_inventory_consumption" model="bml.report.footer.config">
+            <field name="report_type">inventory_consumption</field>
+            <field name="footer_left"></field>
+            <field name="footer_right"></field>
+            <field name="active" eval="False"/>
+        </record>
+
+        <!-- Inventory - Repair: ใบแจ้งซ่อม/ปรับปรุง เครื่องจักร FM-MN-01-03 -->
+        <record id="footer_config_inventory_repair" model="bml.report.footer.config">
+            <field name="report_type">inventory_repair</field>
+            <field name="footer_left"></field>
+            <field name="footer_right"></field>
+            <field name="active" eval="False"/>
+        </record>
+
+        <!-- Purchase Order - RFQ -->
+        <record id="footer_config_po_rfq" model="bml.report.footer.config">
+            <field name="report_type">purchase_order_rfq</field>
+            <field name="footer_left"></field>
+            <field name="footer_right"></field>
+            <field name="active" eval="False"/>
+        </record>
+
+        <!-- Purchase Order - Bill: ใบสั่งซื้อ FM-PO-01-06 -->
+        <record id="footer_config_po_bill" model="bml.report.footer.config">
+            <field name="report_type">purchase_order_bill</field>
+            <field name="footer_left"></field>
+            <field name="footer_right"></field>
+            <field name="active" eval="False"/>
+        </record>
+    </data>
+</odoo>

@@ -5,8 +5,11 @@
     'author': 'Jaylinnyc',
     'depends': ['account', 'purchase', 'web'],
     'data': [
+        'security/ir.model.access.csv',
+        'views/report_footer_config_views.xml',
         'views/report_purchase_order.xml',   # keep your footer override
         'views/account_move_views.xml',      # bill date sync feature
+        'data/report_footer_data.xml',       # default footer configurations
     ],
     'installable': True,
     'license': 'OPL-1',
