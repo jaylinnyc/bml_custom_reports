@@ -1,8 +1,12 @@
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
 import base64
-from PIL import Image
-from io import BytesIO
+try:
+    from PIL import Image
+    from io import BytesIO
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
 
 
 class ResCompany(models.Model):
@@ -30,6 +34,9 @@ class ResCompany(models.Model):
     @api.constrains('report_header_image')
     def _check_report_header_image(self):
         """Validate the uploaded header image"""
+        if not PIL_AVAILABLE:
+            return  # Skip validation if PIL is not available
+            
         for company in self:
             if company.report_header_image:
                 try:

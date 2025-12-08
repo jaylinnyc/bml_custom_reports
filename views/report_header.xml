@@ -16,7 +16,8 @@
                     <!-- Check if company has custom header enabled -->
                     <t t-set="company" t-value="o.company_id if hasattr(o, 'company_id') else res_company"/>
                     
-                    <t t-if="company and company.use_custom_report_header and company.report_header_image">
+                    <!-- Check if custom header fields exist and are enabled -->
+                    <t t-if="company and hasattr(company, 'use_custom_report_header') and company.use_custom_report_header and company.report_header_image">
                         <!-- Custom Image Header -->
                         <div style="width: 100%; text-align: center; margin: 0; padding: 0;">
                             <img t-att-src="image_data_uri(company.report_header_image)"
