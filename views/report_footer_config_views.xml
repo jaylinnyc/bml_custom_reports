@@ -62,7 +62,7 @@
 
     <!-- Menu Item under Settings -->
     <menuitem id="menu_report_footer_config"
-              name="BML Report Footers"
+              name="Report Footers"
               parent="base.menu_administration"
               action="action_report_footer_config"
               sequence="100"/>

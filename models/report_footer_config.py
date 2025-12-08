@@ -3,7 +3,7 @@ from odoo import models, fields, api
 
 class ReportFooterConfig(models.Model):
     _name = 'bml.report.footer.config'
-    _description = 'BML Report Footer Configuration'
+    _description = 'Report Footer Configuration'
     _order = 'report_type, company_id'
 
     name = fields.Char(

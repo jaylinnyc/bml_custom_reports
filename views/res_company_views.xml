@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Extend Company Form View to add Report Header Image -->
+    <record id="view_company_form_report_header" model="ir.ui.view">
+        <field name="name">res.company.form.report.header</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id" ref="base.view_company_form"/>
+        <field name="arch" type="xml">
+            <!-- Add a new tab for Report Configuration -->
+            <xpath expr="//notebook" position="inside">
+                <page string="Report Configuration" name="report_configuration">
+                    <group>
+                        <group string="Custom Report Header">
+                            <field name="use_custom_report_header"/>
+                            <field name="report_header_image" 
+                                   widget="image" 
+                                   class="oe_avatar"
+                                   options="{'size': [1800, 300]}"
+                                   invisible="not use_custom_report_header"/>
+                            <field name="report_header_image_filename" invisible="1"/>
+                        </group>
+                    </group>
+                    
+                    <div class="alert alert-info" role="alert" invisible="not use_custom_report_header">
+                        <h4>Header Image Guidelines:</h4>
+                        <ul>
+                            <li><strong>Recommended Dimensions:</strong> 1800 x 300 pixels (6:1 ratio)</li>
+                            <li><strong>Minimum Width:</strong> 1200 pixels for good print quality</li>
+                            <li><strong>Format:</strong> PNG or JPG</li>
+                            <li><strong>Resolution:</strong> 300 DPI for professional print quality</li>
+                            <li><strong>File Size:</strong> Maximum 5MB (compress if needed)</li>
+                            <li><strong>Color Space:</strong> RGB</li>
+                        </ul>
+                        <p class="mb-0">
+                            <strong>Note:</strong> The custom header will replace the standard Odoo header (company logo, name, address) 
+                            in all PDF reports when enabled. The footer will remain dynamic with page numbers and ISO information.
+                        </p>
+                    </div>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>
