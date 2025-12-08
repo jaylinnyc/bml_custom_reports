@@ -266,49 +266,47 @@
                   name="Custom ISO Footer - Inventory Operations"
                   priority="51">
             <xpath expr="//div[contains(@class, 'footer')]" position="inside">
-                <div t-att-class="'bml_custom_footer_inventory'">
-                    <t t-set="model_name" t-value="o._name if o else False"/>
+                <t t-set="model_name" t-value="o._name if o else False"/>
+                
+                <t t-if="model_name == 'stock.picking'">
+                    <!-- Determine report type based on bml_doc_type variable -->
+                    <t t-set="footer_report_type" t-value="False"/>
+                    <t t-if="bml_doc_type == 'repair'">
+                        <t t-set="footer_report_type" t-value="'inventory_repair'"/>
+                    </t>
+                    <t t-elif="bml_doc_type == 'consumption'">
+                        <t t-set="footer_report_type" t-value="'inventory_consumption'"/>
+                    </t>
                     
-                    <t t-if="model_name == 'stock.picking'">
-                        <!-- Determine report type based on bml_doc_type variable -->
-                        <t t-set="footer_report_type" t-value="False"/>
-                        <t t-if="bml_doc_type == 'repair'">
-                            <t t-set="footer_report_type" t-value="'inventory_repair'"/>
-                        </t>
-                        <t t-elif="bml_doc_type == 'consumption'">
-                            <t t-set="footer_report_type" t-value="'inventory_consumption'"/>
-                        </t>
+                    <!-- Fetch footer configuration from database -->
+                    <t t-if="footer_report_type">
+                        <t t-set="footer_config" t-value="request.env['bml.report.footer.config'].sudo().search([
+                            ('report_type', '=', footer_report_type),
+                            ('company_id', '=', o.company_id.id),
+                            ('active', '=', True)
+                        ], limit=1)"/>
                         
-                        <!-- Fetch footer configuration from database -->
-                        <t t-if="footer_report_type">
-                            <t t-set="footer_config" t-value="request.env['bml.report.footer.config'].sudo().search([
-                                ('report_type', '=', footer_report_type),
-                                ('company_id', '=', o.company_id.id),
-                                ('active', '=', True)
-                            ], limit=1)"/>
-                            
-                            <!-- Only display footer if configuration exists -->
-                            <t t-if="footer_config">
-                                <div class="w-100"></div>
-                                <div class="row">
-                                    <!-- Left Column: Storage/Retention Notes -->
-                                    <t t-if="footer_config.footer_left">
-                                        <div class="col-6 text-start">
-                                            <small class="text-muted font-weight-medium" t-esc="footer_config.footer_left"/>
-                                        </div>
-                                    </t>
-                                    
-                                    <!-- Right Column: ISO Code and Metadata -->
-                                    <t t-if="footer_config.footer_right">
-                                        <div t-attf-class="col-#{6 if footer_config.footer_left else 12} text-end">
-                                            <small class="text-muted font-weight-medium" t-esc="footer_config.footer_right"/>
-                                        </div>
-                                    </t>
-                                </div>
-                            </t>
+                        <!-- Only display footer if configuration exists -->
+                        <t t-if="footer_config">
+                            <div class="w-100"></div>
+                            <div class="row">
+                                <!-- Left Column: Storage/Retention Notes -->
+                                <t t-if="footer_config.footer_left">
+                                    <div class="col-6 text-start">
+                                        <small class="text-muted font-weight-medium" t-esc="footer_config.footer_left"/>
+                                    </div>
+                                </t>
+                                
+                                <!-- Right Column: ISO Code and Metadata -->
+                                <t t-if="footer_config.footer_right">
+                                    <div t-attf-class="col-#{6 if footer_config.footer_left else 12} text-end">
+                                        <small class="text-muted font-weight-medium" t-esc="footer_config.footer_right"/>
+                                    </div>
+                                </t>
+                            </div>
                         </t>
                     </t>
-                </div>
+                </t>
             </xpath>
         </template>
 
