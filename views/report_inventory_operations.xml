@@ -215,6 +215,12 @@
                     <div class="oe_structure"/>
                     <p t-field="o.note"/>
                     <div class="oe_structure"/>
+                    
+                    <!-- Signature Section -->
+                    <div class="oe_structure mt-4">
+                        <strong>Signature:</strong>
+                        <span data-oe-demo="Receiver Signature" t-field="o.x_studio_receiver_signature_1" t-options-widget="'image'" t-options-qweb_img_raw_data="1"/>
+                    </div>
                 </div>
             </t>
         </template>
