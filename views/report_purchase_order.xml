@@ -237,7 +237,7 @@ action = env.ref('purchase.report_purchase_quotation').report_action(record)
         <template id="external_layout_boxed_footer"
                   inherit_id="web.external_layout_boxed"
                   name="Custom ISO Footer - Purchase Order &amp; Tax Invoice">
-            <xpath expr="//div[contains(@class, 'footer')]" position="inside">
+            <xpath expr="//div[contains(@class, 'footer')]/div[not(@t-if) and not(@t-else)]" position="inside">
                 <t t-set="model_name" t-value="o._name if o else False"/>
                 
                 <!-- Purchase Order Footer -->

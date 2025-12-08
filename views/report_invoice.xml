@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- ======================================================= -->
+        <!-- SALES INVOICE (Tax Invoice) - Product Description      -->
+        <!-- ======================================================= -->
+        
+        <!-- Override the invoice line item template to show product description -->
+        <template id="bml_report_invoice_document"
+                  inherit_id="account.report_invoice_document"
+                  name="BML - Tax Invoice Product Description"
+                  priority="50">
+            
+            <!-- Find the product name field and replace it with conditional logic -->
+            <xpath expr="//span[@t-field='line.name']" position="replace">
+                <span t-if="line.product_id and line.product_id.description_sale" 
+                      t-field="line.product_id.description_sale"/>
+                <span t-else="" t-field="line.name"/>
+            </xpath>
+        </template>
+
+    </data>
+</odoo>
