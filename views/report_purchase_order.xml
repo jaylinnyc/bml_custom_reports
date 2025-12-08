@@ -238,43 +238,44 @@ action = env.ref('purchase.report_purchase_quotation').report_action(record)
                   inherit_id="web.external_layout_boxed"
                   name="Custom ISO Footer - Purchase Order &amp; Tax Invoice">
             <xpath expr="//div[contains(@class, 'footer')]" position="inside">
-                <t t-set="model_name" t-value="o._name if o else False"/>
-                
-                <!-- Purchase Order Footer -->
-                <t t-if="model_name == 'purchase.order'">
-                    <!-- Determine report type based on bml_doc_type variable -->
-                    <t t-set="footer_report_type" t-value="'purchase_order_rfq' if bml_doc_type == 'rfq' else 'purchase_order_bill'"/>
+                <div t-att-class="'bml_custom_footer'">
+                    <t t-set="model_name" t-value="o._name if o else False"/>
                     
-                    <!-- Fetch footer configuration from database -->
-                    <t t-set="footer_config" t-value="request.env['bml.report.footer.config'].sudo().search([
-                        ('report_type', '=', footer_report_type),
-                        ('company_id', '=', o.company_id.id),
-                        ('active', '=', True)
-                    ], limit=1)"/>
-                    
-                    <!-- Only display footer if configuration exists -->
-                    <t t-if="footer_config">
-                        <div class="w-100"></div>
-                        <div class="row">
-                            <!-- Left Column: Storage/Retention Notes -->
-                            <t t-if="footer_config.footer_left">
-                                <div class="col-6 text-start">
-                                    <small class="text-muted font-weight-medium" t-esc="footer_config.footer_left"/>
-                                </div>
-                            </t>
-                            
-                            <!-- Right Column: ISO Code and Metadata -->
-                            <t t-if="footer_config.footer_right">
-                                <div t-attf-class="col-#{6 if footer_config.footer_left else 12} text-end">
-                                    <small class="text-muted font-weight-medium" t-esc="footer_config.footer_right"/>
-                                </div>
-                            </t>
-                        </div>
+                    <!-- Purchase Order Footer -->
+                    <t t-if="model_name == 'purchase.order'">
+                        <!-- Determine report type based on bml_doc_type variable -->
+                        <t t-set="footer_report_type" t-value="'purchase_order_rfq' if bml_doc_type == 'rfq' else 'purchase_order_bill'"/>
+                        
+                        <!-- Fetch footer configuration from database -->
+                        <t t-set="footer_config" t-value="request.env['bml.report.footer.config'].sudo().search([
+                            ('report_type', '=', footer_report_type),
+                            ('company_id', '=', o.company_id.id),
+                            ('active', '=', True)
+                        ], limit=1)"/>
+                        
+                        <!-- Only display footer if configuration exists -->
+                        <t t-if="footer_config">
+                            <div class="w-100"></div>
+                            <div class="row">
+                                <!-- Left Column: Storage/Retention Notes -->
+                                <t t-if="footer_config.footer_left">
+                                    <div class="col-6 text-start">
+                                        <small class="text-muted font-weight-medium" t-esc="footer_config.footer_left"/>
+                                    </div>
+                                </t>
+                                
+                                <!-- Right Column: ISO Code and Metadata -->
+                                <t t-if="footer_config.footer_right">
+                                    <div t-attf-class="col-#{6 if footer_config.footer_left else 12} text-end">
+                                        <small class="text-muted font-weight-medium" t-esc="footer_config.footer_right"/>
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
                     </t>
-                </t>
-                
-                <!-- Tax Invoice Footer (Sales Invoice) -->
-                <t t-if="model_name == 'account.move' and o.move_type == 'out_invoice'">
+                    
+                    <!-- Tax Invoice Footer (Sales Invoice) -->
+                    <t t-if="model_name == 'account.move' and o.move_type == 'out_invoice'">
                     <!-- Fetch footer configuration for tax invoice -->
                     <t t-set="footer_config" t-value="request.env['bml.report.footer.config'].sudo().search([
                         ('report_type', '=', 'sales_tax_invoice'),
@@ -302,6 +303,7 @@ action = env.ref('purchase.report_purchase_quotation').report_action(record)
                         </div>
                     </t>
                 </t>
+                </div>
             </xpath>
         </template>
         
