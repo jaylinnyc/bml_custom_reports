@@ -265,7 +265,7 @@
                   inherit_id="web.external_layout_boxed"
                   name="Custom ISO Footer - Inventory Operations"
                   priority="51">
-            <xpath expr="//div[contains(@class, 'footer')]/div[not(@t-if) and not(@t-else)]" position="inside">
+            <xpath expr="//div[contains(@class, 'footer')]" position="inside">
                 <t t-set="model_name" t-value="o._name if o else False"/>
                 
                 <t t-if="model_name == 'stock.picking'">
