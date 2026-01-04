@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Tree View -->
-    <record id="view_delivery_date_mismatch_report_tree" model="ir.ui.view">
-        <field name="name">delivery.date.mismatch.report.tree</field>
+    <!-- List View -->
+    <record id="view_delivery_date_mismatch_report_list" model="ir.ui.view">
+        <field name="name">delivery.date.mismatch.report.list</field>
         <field name="model">delivery.date.mismatch.report</field>
         <field name="arch" type="xml">
-            <tree string="Delivery Date Mismatch Report" create="false" edit="false" delete="false">
+            <list string="Delivery Date Mismatch Report" create="false" edit="false" delete="false">
                 <field name="name" string="Document Number"/>
                 <field name="partner_id"/>
                 <field name="move_type"/>
@@ -16,7 +16,7 @@
                 <field name="currency_id" invisible="1"/>
                 <field name="state"/>
                 <field name="company_id" groups="base.group_multi_company"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -88,7 +88,7 @@
     <record id="action_delivery_date_mismatch_report" model="ir.actions.act_window">
         <field name="name">Delivery Date Mismatch Report</field>
         <field name="res_model">delivery.date.mismatch.report</field>
-        <field name="view_mode">tree,pivot,graph</field>
+        <field name="view_mode">list,pivot,graph</field>
         <field name="context">{'search_default_this_year': 1}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
