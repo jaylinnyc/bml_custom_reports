@@ -27,27 +27,25 @@ class DeliveryDateMismatchReport(models.Model):
     ], string='Status', readonly=True)
     company_id = fields.Many2one('res.company', string='Company', readonly=True)
 
-    def init(self):
-        """Create the SQL view for the report"""
-        self._cr.execute("""
-            CREATE OR REPLACE VIEW delivery_date_mismatch_report AS (
-                SELECT
-                    am.id,
-                    am.name,
-                    am.partner_id,
-                    am.move_type,
-                    am.invoice_date,
-                    COALESCE(am.delivery_date, am.invoice_date) as delivery_date,
-                    ABS(COALESCE(am.delivery_date, am.invoice_date) - am.invoice_date) as date_difference,
-                    am.amount_total,
-                    am.currency_id,
-                    am.state,
-                    am.company_id
-                FROM
-                    account_move am
-                WHERE
-                    am.move_type IN ('out_invoice', 'in_invoice', 'out_refund', 'in_refund')
-                    AND am.state = 'posted'
-                    AND COALESCE(am.delivery_date, am.invoice_date) != am.invoice_date
-            )
-        """)
+    @property
+    def _table_query(self):
+        return """
+            SELECT
+                am.id,
+                am.name,
+                am.partner_id,
+                am.move_type,
+                am.invoice_date,
+                COALESCE(am.delivery_date, am.invoice_date) as delivery_date,
+                ABS(COALESCE(am.delivery_date, am.invoice_date) - am.invoice_date) as date_difference,
+                am.amount_total,
+                am.currency_id,
+                am.state,
+                am.company_id
+            FROM
+                account_move am
+            WHERE
+                am.move_type IN ('out_invoice', 'in_invoice', 'out_refund', 'in_refund')
+                AND am.state = 'posted'
+                AND COALESCE(am.delivery_date, am.invoice_date) != am.invoice_date
+        """

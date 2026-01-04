@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- List View -->
+
     <record id="view_delivery_date_mismatch_report_list" model="ir.ui.view">
         <field name="name">delivery.date.mismatch.report.list</field>
         <field name="model">delivery.date.mismatch.report</field>
@@ -13,19 +13,18 @@
                 <field name="delivery_date"/>
                 <field name="date_difference" string="Days Diff"/>
                 <field name="amount_total"/>
-                <field name="currency_id" invisible="1"/>
+                <field name="currency_id" column_invisible="True"/>
                 <field name="state"/>
                 <field name="company_id" groups="base.group_multi_company"/>
             </list>
         </field>
     </record>
 
-    <!-- Search View -->
     <record id="view_delivery_date_mismatch_report_search" model="ir.ui.view">
         <field name="name">delivery.date.mismatch.report.search</field>
         <field name="model">delivery.date.mismatch.report</field>
         <field name="arch" type="xml">
-            <search>
+            <search string="Delivery Date Mismatch Report">
                 <field name="name"/>
                 <field name="partner_id"/>
                 <field name="move_type"/>
@@ -34,7 +33,7 @@
                 <filter string="Customer Invoices" name="customer_invoices" domain="[('move_type', '=', 'out_invoice')]"/>
                 <filter string="Vendor Bills" name="vendor_bills" domain="[('move_type', '=', 'in_invoice')]"/>
                 <filter string="Credit Notes" name="credit_notes" domain="[('move_type', 'in', ['out_refund', 'in_refund'])]"/>
-                <group expand="0" string="Group By">
+                <group>
                     <filter string="Partner" name="group_by_partner" context="{'group_by': 'partner_id'}"/>
                     <filter string="Type" name="group_by_type" context="{'group_by': 'move_type'}"/>
                     <filter string="Company" name="group_by_company" context="{'group_by': 'company_id'}" groups="base.group_multi_company"/>
@@ -43,7 +42,6 @@
         </field>
     </record>
 
-    <!-- Pivot View -->
     <record id="view_delivery_date_mismatch_report_pivot" model="ir.ui.view">
         <field name="name">delivery.date.mismatch.report.pivot</field>
         <field name="model">delivery.date.mismatch.report</field>
@@ -56,7 +54,6 @@
         </field>
     </record>
 
-    <!-- Graph View -->
     <record id="view_delivery_date_mismatch_report_graph" model="ir.ui.view">
         <field name="name">delivery.date.mismatch.report.graph</field>
         <field name="model">delivery.date.mismatch.report</field>
@@ -68,12 +65,11 @@
         </field>
     </record>
 
-    <!-- Action -->
     <record id="action_delivery_date_mismatch_report" model="ir.actions.act_window">
         <field name="name">Delivery Date Mismatch Report</field>
         <field name="res_model">delivery.date.mismatch.report</field>
         <field name="view_mode">list,pivot,graph</field>
-        <field name="context">{}</field>
+        <field name="search_view_id" ref="view_delivery_date_mismatch_report_search"/>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 No mismatches found
@@ -84,10 +80,10 @@
         </field>
     </record>
 
-    <!-- Menu Item under Accounting > Reporting -->
     <menuitem id="menu_delivery_date_mismatch_report"
               name="Delivery Date Mismatch"
               parent="account.menu_finance_reports"
               action="action_delivery_date_mismatch_report"
               sequence="50"/>
+
 </odoo>
