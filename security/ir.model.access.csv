@@ -1,3 +1,6 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_bml_report_footer_config_user,bml.report.footer.config.user,model_bml_report_footer_config,base.group_user,1,0,0,0
 access_bml_report_footer_config_admin,bml.report.footer.config.admin,model_bml_report_footer_config,base.group_erp_manager,1,1,1,1
+access_delivery_date_mismatch_report_user,delivery.date.mismatch.report.user,model_delivery_date_mismatch_report,account.group_account_readonly,1,0,0,0
+access_delivery_date_mismatch_report_accountant,delivery.date.mismatch.report.accountant,model_delivery_date_mismatch_report,account.group_account_invoice,1,0,0,0
+access_delivery_date_mismatch_report_manager,delivery.date.mismatch.report.manager,model_delivery_date_mismatch_report,account.group_account_manager,1,0,0,0

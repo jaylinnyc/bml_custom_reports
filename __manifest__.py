@@ -12,7 +12,8 @@
         'views/report_purchase_order.xml',   # keep your footer override
         'views/report_invoice.xml',          # tax invoice with product description
         'views/report_inventory_operations.xml',  # inventory repair & consumption reports
-        'views/account_move_views.xml',      # bill date sync feature
+        'views/account_move_views.xml',      # bill date sync feature + delivery date field
+        'views/delivery_date_mismatch_report_views.xml',  # delivery date mismatch report
         'data/report_footer_data.xml',       # default footer configurations
     ],
     'installable': True,
