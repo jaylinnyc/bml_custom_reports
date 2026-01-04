@@ -29,7 +29,6 @@ class DeliveryDateMismatchReport(models.Model):
 
     def init(self):
         """Create the SQL view for the report"""
-        tools = self.env['ir.model.data']
         self._cr.execute("""
             CREATE OR REPLACE VIEW delivery_date_mismatch_report AS (
                 SELECT
@@ -39,7 +38,7 @@ class DeliveryDateMismatchReport(models.Model):
                     am.move_type,
                     am.invoice_date,
                     COALESCE(am.delivery_date, am.invoice_date) as delivery_date,
-                    ABS(DATE_PART('day', COALESCE(am.delivery_date, am.invoice_date) - am.invoice_date))::integer as date_difference,
+                    ABS(COALESCE(am.delivery_date, am.invoice_date) - am.invoice_date) as date_difference,
                     am.amount_total,
                     am.currency_id,
                     am.state,
