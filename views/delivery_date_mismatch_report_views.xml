@@ -29,6 +29,8 @@
                 <field name="name" string="Document Number"/>
                 <field name="partner_id"/>
                 <field name="move_type"/>
+                <field name="invoice_date"/>
+                <field name="delivery_date"/>
                 
                 <filter string="Customer Invoices" name="customer_invoices"
                         domain="[('move_type', '=', 'out_invoice')]"/>
@@ -38,21 +40,22 @@
                         domain="[('move_type', 'in', ['out_refund', 'in_refund'])]"/>
                 
                 <separator/>
-                <filter string="This Month" name="this_month"
-                        domain="[('invoice_date', '&gt;=', (context_today() - relativedelta(day=1)).strftime('%Y-%m-%d')),
-                                 ('invoice_date', '&lt;=', (context_today() + relativedelta(day=31)).strftime('%Y-%m-%d'))]"/>
-                <filter string="This Year" name="this_year"
-                        domain="[('invoice_date', '&gt;=', (context_today() - relativedelta(month=1, day=1)).strftime('%Y-%m-%d')),
-                                 ('invoice_date', '&lt;=', (context_today() + relativedelta(month=12, day=31)).strftime('%Y-%m-%d'))]"/>
+                <filter string="Large Difference (&gt;7 days)" name="large_difference"
+                        domain="[('date_difference', '&gt;', 7)]"/>
+                <filter string="Medium Difference (3-7 days)" name="medium_difference"
+                        domain="[('date_difference', '&gt;=', 3), ('date_difference', '&lt;=', 7)]"/>
+                <filter string="Small Difference (1-2 days)" name="small_difference"
+                        domain="[('date_difference', '&gt;=', 1), ('date_difference', '&lt;=', 2)]"/>
                 
                 <separator/>
-                <filter string="Large Difference (>7 days)" name="large_difference"
-                        domain="[('date_difference', '&gt;', 7)]"/>
+                <filter string="Invoice Date" name="filter_invoice_date" date="invoice_date"/>
+                <filter string="Delivery Date" name="filter_delivery_date" date="delivery_date"/>
                 
                 <group expand="0" string="Group By">
                     <filter string="Partner" name="group_by_partner" context="{'group_by': 'partner_id'}"/>
                     <filter string="Type" name="group_by_type" context="{'group_by': 'move_type'}"/>
-                    <filter string="Invoice Date" name="group_by_invoice_date" context="{'group_by': 'invoice_date'}"/>
+                    <filter string="Invoice Date" name="group_by_invoice_date" context="{'group_by': 'invoice_date:month'}"/>
+                    <filter string="Delivery Date" name="group_by_delivery_date" context="{'group_by': 'delivery_date:month'}"/>
                     <filter string="Company" name="group_by_company" context="{'group_by': 'company_id'}" groups="base.group_multi_company"/>
                 </group>
             </search>
@@ -89,7 +92,7 @@
         <field name="name">Delivery Date Mismatch Report</field>
         <field name="res_model">delivery.date.mismatch.report</field>
         <field name="view_mode">list,pivot,graph</field>
-        <field name="context">{'search_default_this_year': 1}</field>
+        <field name="context">{}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 No mismatches found
