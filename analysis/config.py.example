@@ -1,0 +1,20 @@
+"""
+Odoo API Configuration - EXAMPLE FILE
+
+Copy this file to config.py and fill in your credentials.
+config.py is gitignored for security.
+"""
+
+# Odoo Connection Details
+ODOO_URL = "https://your-instance.dev.odoo.com"
+ODOO_DB = "your-database-name"
+ODOO_USERNAME = "admin"
+ODOO_API_KEY = "your-api-key-here"
+
+# How to get API key:
+# 1. Go to your Odoo instance
+# 2. Click on your user avatar (top right)
+# 3. Go to "My Profile" or "Preferences"
+# 4. Go to "Account Security" tab
+# 5. Click "New API Key"
+# 6. Give it a name and copy the key

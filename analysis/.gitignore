@@ -1,0 +1,7 @@
+# Analysis folder - ignore generated files and sensitive config
+*.json
+*.pyc
+__pycache__/
+
+# Keep config.py.example but ignore actual config
+config.py
