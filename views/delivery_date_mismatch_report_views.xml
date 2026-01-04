@@ -25,27 +25,16 @@
         <field name="name">delivery.date.mismatch.report.search</field>
         <field name="model">delivery.date.mismatch.report</field>
         <field name="arch" type="xml">
-            <search string="Delivery Date Mismatch Report">
-                <field name="name" string="Document Number"/>
+            <search>
+                <field name="name"/>
                 <field name="partner_id"/>
                 <field name="move_type"/>
                 <field name="invoice_date"/>
                 <field name="delivery_date"/>
                 
-                <filter string="Customer Invoices" name="customer_invoices"
-                        domain="[('move_type', '=', 'out_invoice')]"/>
-                <filter string="Vendor Bills" name="vendor_bills"
-                        domain="[('move_type', '=', 'in_invoice')]"/>
-                <filter string="Credit Notes" name="credit_notes"
-                        domain="[('move_type', 'in', ['out_refund', 'in_refund'])]"/>
-                
-                <separator/>
-                <filter string="Large Difference (&gt;7 days)" name="large_difference"
-                        domain="[('date_difference', '&gt;', 7)]"/>
-                <filter string="Medium Difference (3-7 days)" name="medium_difference"
-                        domain="[('date_difference', '&gt;=', 3), ('date_difference', '&lt;=', 7)]"/>
-                <filter string="Small Difference (1-2 days)" name="small_difference"
-                        domain="[('date_difference', '&gt;=', 1), ('date_difference', '&lt;=', 2)]"/>
+                <filter string="Customer Invoices" name="customer_invoices" domain="[('move_type', '=', 'out_invoice')]"/>
+                <filter string="Vendor Bills" name="vendor_bills" domain="[('move_type', '=', 'in_invoice')]"/>
+                <filter string="Credit Notes" name="credit_notes" domain="[('move_type', 'in', ['out_refund', 'in_refund'])]"/>
                 
                 <separator/>
                 <filter string="Invoice Date" name="filter_invoice_date" date="invoice_date"/>
