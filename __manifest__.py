@@ -6,7 +6,7 @@
     'depends': ['account', 'account_accountant', 'purchase', 'stock', 'web'],
     'data': [
         'security/ir.model.access.csv',
-        # 'views/res_company_views.xml',       # TODO: Re-enable after etax module is upgraded on staging
+        'views/res_company_views.xml',       # company settings for custom header
         'views/report_header.xml',           # custom header override
         'views/report_footer_config_views.xml',
         'views/report_purchase_order.xml',   # keep your footer override
