@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
-    <t t-name="bml_custom_reports.BankRecoKanbanController" t-inherit="account_accountant.BankRecoKanbanController" t-inherit-mode="extension">
-        <xpath expr="//t[@t-set-slot='control-panel-navigation-additional']" position="inside">
+    <t t-name="account_accountant.BankRecoKanbanController" 
+       t-inherit="account_accountant.BankRecoKanbanController" 
+       t-inherit-mode="extension">
+        <xpath expr="//xpath[@expr='//Layout'][@position='inside']/t[@t-set-slot='control-panel-navigation-additional']/button" position="after">
             <button
                 t-on-click="() => this.autoReconcileAll()"
                 class="btn btn-secondary ms-2"
-                data-tooltip="Auto Reconcile All Unreconciled Transactions">
+                data-tooltip="Auto Reconcile All">
                 <i class="fa fa-magic me-1"/>
                 Auto Reconcile
             </button>
