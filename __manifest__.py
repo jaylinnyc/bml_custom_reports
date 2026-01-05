@@ -13,7 +13,6 @@
         'views/report_invoice.xml',          # tax invoice with product description
         'views/report_inventory_operations.xml',  # inventory repair & consumption reports
         'views/account_move_views.xml',      # hide accounting date, show delivery date
-        'views/account_bank_statement_views.xml',  # manual auto-reconcile action
         'data/report_footer_data.xml',       # default footer configurations
     ],
     'assets': {
