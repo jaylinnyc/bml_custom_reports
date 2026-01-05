@@ -4,7 +4,7 @@
     <record id="view_bank_statement_line_kanban_inherit" model="ir.ui.view">
         <field name="name">account.bank.statement.line.kanban.inherit</field>
         <field name="model">account.bank.statement.line</field>
-        <field name="inherit_id" ref="account_accountant.view_bank_statement_line_kanban"/>
+        <field name="inherit_id" ref="account_accountant.view_bank_statement_line_kanban_bank_rec_widget"/>
         <field name="arch" type="xml">
             <xpath expr="//kanban" position="before">
                 <header>
