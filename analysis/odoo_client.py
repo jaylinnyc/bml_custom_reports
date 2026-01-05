@@ -1,5 +1,5 @@
 """
-Odoo API Client Helper
+Odoo API Client Helper - Multi-Project Support
 """
 import xmlrpc.client
 import ssl
@@ -7,19 +7,57 @@ import os
 
 # Try to import config, provide helpful error if missing
 try:
-    from config import ODOO_URL, ODOO_DB, ODOO_USERNAME, ODOO_API_KEY
-except ImportError:
-    print("❌ Error: config.py not found!")
-    print("   Copy config.py.example to config.py and fill in your credentials.")
-    exit(1)
+    from config import ODOO_URL, ODOO_DB, ODOO_USERNAME, ODOO_API_KEY, PROJECTS, DEFAULT_PROJECT
+except ImportError as e:
+    # Fallback for old config format
+    try:
+        from config import ODOO_URL, ODOO_DB, ODOO_USERNAME, ODOO_API_KEY
+        PROJECTS = None
+        DEFAULT_PROJECT = None
+    except ImportError:
+        print("❌ Error: config.py not found!")
+        print("   Copy config.py.example to config.py and fill in your credentials.")
+        exit(1)
 
 
 class OdooClient:
-    def __init__(self, verbose=True):
-        self.url = ODOO_URL
-        self.db = ODOO_DB
-        self.username = ODOO_USERNAME
-        self.api_key = ODOO_API_KEY
+    def __init__(self, project=None, verbose=True):
+        """
+        Initialize Odoo client
+        
+        Args:
+            project: Project key from PROJECTS dict (e.g., 'panya19prod', 'bml19')
+                    If None, uses DEFAULT_PROJECT from config or legacy config
+            verbose: Print detailed connection info
+        """
+        # Load project config
+        if project and PROJECTS:
+            if project not in PROJECTS:
+                raise ValueError(f"Unknown project: {project}. Available: {list(PROJECTS.keys())}")
+            config = PROJECTS[project]
+            self.project_name = project
+            self.url = config['url']
+            self.db = config['db']
+            self.username = config['username']
+            self.api_key = config['api_key']
+            self.description = config.get('description', '')
+        else:
+            # Use default or legacy config
+            self.project_name = DEFAULT_PROJECT if DEFAULT_PROJECT and not project else 'default'
+            if DEFAULT_PROJECT and not project and PROJECTS:
+                config = PROJECTS[DEFAULT_PROJECT]
+                self.url = config['url']
+                self.db = config['db']
+                self.username = config['username']
+                self.api_key = config['api_key']
+                self.description = config.get('description', '')
+            else:
+                self.url = ODOO_URL
+                self.db = ODOO_DB
+                self.username = ODOO_USERNAME
+                self.api_key = ODOO_API_KEY
+                self.description = ''
+        
         self.uid = None
         self.models = None
         self.verbose = verbose
@@ -51,6 +89,9 @@ class OdooClient:
             
             if self.verbose:
                 print(f"✅ Connected to Odoo (User ID: {self.uid})")
+                print(f"📍 Project: {self.project_name}")
+                if self.description:
+                    print(f"   {self.description}")
                 
                 # Get server version
                 version_info = common.version()

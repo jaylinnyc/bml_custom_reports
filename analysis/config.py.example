@@ -5,11 +5,32 @@ Copy this file to config.py and fill in your credentials.
 config.py is gitignored for security.
 """
 
-# Odoo Connection Details
-ODOO_URL = "https://your-instance.dev.odoo.com"
-ODOO_DB = "your-database-name"
-ODOO_USERNAME = "admin"
-ODOO_API_KEY = "your-api-key-here"
+# Project configurations
+PROJECTS = {
+    'project1': {
+        'url': 'https://your-instance1.odoo.com',
+        'db': 'your-database-name-1',
+        'username': 'admin',
+        'api_key': 'your-api-key-here-1',
+        'description': 'Project 1 description'
+    },
+    'project2': {
+        'url': 'https://your-instance2.odoo.com',
+        'db': 'your-database-name-2',
+        'username': 'admin',
+        'api_key': 'your-api-key-here-2',
+        'description': 'Project 2 description'
+    }
+}
+
+# Default project (used when no project is specified)
+DEFAULT_PROJECT = 'project1'
+
+# Legacy single-project config (for backward compatibility)
+ODOO_URL = PROJECTS[DEFAULT_PROJECT]['url']
+ODOO_DB = PROJECTS[DEFAULT_PROJECT]['db']
+ODOO_USERNAME = PROJECTS[DEFAULT_PROJECT]['username']
+ODOO_API_KEY = PROJECTS[DEFAULT_PROJECT]['api_key']
 
 # How to get API key:
 # 1. Go to your Odoo instance

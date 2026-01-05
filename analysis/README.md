@@ -1,6 +1,6 @@
 # BML Custom Reports - Analysis Scripts
 
-This folder contains Python scripts for analyzing and testing the bml_custom_reports module against the Odoo staging server.
+This folder contains Python scripts for analyzing and testing the bml_custom_reports module against multiple Odoo staging servers.
 
 ## Setup
 
@@ -11,12 +11,34 @@ This folder contains Python scripts for analyzing and testing the bml_custom_rep
 
 2. **Edit `config.py` with your credentials:**
    - Get API key from: Odoo > User Menu > My Profile > Account Security > API Keys
-   - Create a new API key with a descriptive name
+   - Create a new API key with a descriptive name for each project
+   - The config supports multiple projects (e.g., panya19prod and bml19)
 
 3. **Install dependencies (if needed):**
    ```bash
    pip install xmlrpc-client  # Usually included in Python stdlib
    ```
+
+## Multi-Project Support
+
+The analysis tools support multiple Odoo instances simultaneously. This is useful when:
+- Testing changes across different environments
+- Comparing field configurations between projects
+- Ensuring consistency across deployments
+
+**View configured projects:**
+```bash
+python list_projects.py
+```
+
+**Using specific projects in scripts:**
+```python
+# Use default project
+client = OdooClient()
+
+# Use specific project
+client = OdooClient(project='bml19')
+```
 
 ## Scripts
 
@@ -24,7 +46,9 @@ This folder contains Python scripts for analyzing and testing the bml_custom_rep
 
 | Script | Description |
 |--------|-------------|
-| `odoo_client.py` | Reusable Odoo XML-RPC client class |
+| `odoo_client.py` | Reusable Odoo XML-RPC client class with multi-project support |
+| `list_projects.py` | Show all configured projects |
+| `compare_projects.py` | Compare field configurations across projects |
 | `odoo_shell.py` | Interactive shell for exploring Odoo data |
 | `run_all_checks.py` | Run all numbered analysis scripts |
 
