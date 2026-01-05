@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Add Auto Reconcile button to Bank Reconciliation Kanban View -->
+    <record id="view_bank_statement_line_kanban_inherit" model="ir.ui.view">
+        <field name="name">account.bank.statement.line.kanban.inherit</field>
+        <field name="model">account.bank.statement.line</field>
+        <field name="inherit_id" ref="account_accountant.view_bank_statement_line_kanban"/>
+        <field name="arch" type="xml">
+            <xpath expr="//kanban" position="before">
+                <header>
+                    <button name="action_manual_auto_reconcile" 
+                            string="Auto Reconcile" 
+                            type="object" 
+                            class="btn-primary"
+                            icon="fa-magic"/>
+                </header>
+            </xpath>
+        </field>
+    </record>
+</odoo>
