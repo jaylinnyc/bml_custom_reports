@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- Button template for Auto Reconcile - inherits from web.KanbanView.Buttons like account_bank_statement_import does -->
+    <t t-name="bml_custom_reports.BankRecAutoReconcileButton" t-inherit="web.KanbanView.Buttons" t-inherit-mode="primary">
+        <xpath expr="." position="inside">
+            <button class="btn btn-primary ms-1" 
+                    t-on-click="() => this.autoReconcileAll()"
+                    title="Auto Reconcile All Unreconciled Transactions">
+                <i class="fa fa-magic me-1"/>Auto Reconcile
+            </button>
+        </xpath>
+    </t>
+</templates>
