@@ -12,13 +12,6 @@ class AccountMove(models.Model):
         copy=True,
         help='Date when goods/services were delivered. Defaults to bill/invoice date if not specified.'
     )
-    
-    # Migrate x_studio_taxinvoice_date to proper code
-    taxinvoice_date = fields.Date(
-        string='Tax Invoice Date',
-        copy=False,
-        help='Date shown on the tax invoice document'
-    )
 
     @api.depends('invoice_date')
     def _compute_delivery_date(self):

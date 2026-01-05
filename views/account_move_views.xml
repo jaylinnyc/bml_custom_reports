@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Hide Accounting Date and TaxInvoice Date, show Delivery Date only -->
+    <!-- Hide Accounting Date, show Delivery Date only -->
     <record id="view_move_form_inherit_date_sync" model="ir.ui.view">
         <field name="name">account.move.form.inherit.date.sync</field>
         <field name="model">account.move</field>
