@@ -5,6 +5,7 @@
         <field name="name">res.company.form.report.header</field>
         <field name="model">res.company</field>
         <field name="inherit_id" ref="base.view_company_form"/>
+        <field name="priority">99</field>
         <field name="arch" type="xml">
             <!-- Add a new tab for Report Configuration -->
             <xpath expr="//notebook" position="inside">
