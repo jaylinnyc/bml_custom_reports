@@ -3,14 +3,16 @@
     <t t-name="account_accountant.BankRecoKanbanController" 
        t-inherit="account_accountant.BankRecoKanbanController" 
        t-inherit-mode="extension">
-        <xpath expr="//Layout/t[@t-set-slot='control-panel-navigation-additional']" position="inside">
-            <button
-                t-on-click="() => this.autoReconcileAll()"
-                class="btn btn-secondary ms-2"
-                data-tooltip="Auto Reconcile All">
-                <i class="fa fa-magic me-1"/>
-                Auto Reconcile
-            </button>
+        <xpath expr="//Layout" position="inside">
+            <t t-set-slot="control-panel-always-buttons">
+                <button
+                    t-on-click="() => this.autoReconcileAll()"
+                    class="btn btn-primary"
+                    data-tooltip="Auto Reconcile All Unreconciled Transactions">
+                    <i class="fa fa-magic me-1"/>
+                    Auto Reconcile
+                </button>
+            </t>
         </xpath>
     </t>
 </templates>
