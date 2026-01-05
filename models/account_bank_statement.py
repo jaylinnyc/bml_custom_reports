@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import re
 from odoo import models, api
 from odoo.tools import SQL
 
@@ -52,32 +53,38 @@ class AccountBankStatementLine(models.Model):
 
     def _try_auto_reconcile_statement_lines(self, company_id=None):
         """
-        Override to change matching logic:
-        - Match by date + amount + journal_id (absolute match) instead of partner_id
-        - Exclude all bank statement lines from matching results
+        Enhanced auto-reconciliation with smarter matching logic.
         
-        This ensures bank transactions auto-reconcile with journal items that have:
-        1. Same journal account (statement's journal)
-        2. Same date (transaction date)
-        3. Same amount (absolute value match)
+        Matching Strategy (in priority order):
+        1. EXACT MATCH: Same journal + same date + exact amount + reference match
+        2. DATE MATCH: Same journal + same date + exact amount (any reference)
+        3. AMOUNT MATCH: Same journal + exact amount (within 7 day window)
+        4. PARTIAL MATCH: Same journal + can combine multiple items to match amount
         
-        This prevents self-reconciliation with statement lines and provides
-        more reliable matching than partner-based logic.
+        Key improvements:
+        - Match by journal_id (same bank account) instead of partner
+        - Exclude ALL statement lines from matching (prevent self-reconciliation)
+        - Use date from account_move table (st_line inherits from account.move)
+        - Support date tolerance for slight date mismatches
+        - Try to combine multiple journal items if single match not found
+        - **NEW**: Reference/memo matching to disambiguate same-amount entries
+        - **NEW**: Extract invoice numbers from payment_ref for better matching
+        - **NEW**: Score-based selection when multiple candidates exist
         """
-        # Call parent to handle most of the logic
-        # We only need to override the final SQL query that matches by partner
-        
+        if not self:
+            return
+            
         st_move_ids = self.mapped('move_id').ids
         self.lock_for_update()
 
-        # Get reconcile models (from parent)
+        # Get reconcile models
         domain = []
         if company_id is not None:
             from odoo.fields import Domain
             domain = Domain(self.env['account.reconcile.model']._check_company_domain(company_id))
         reco_models = self.env['account.reconcile.model'].search(domain)
 
-        # Partner mapping (from parent - unchanged)
+        # Partner mapping from reconcile models (keep standard logic)
         self.env['account.reconcile.model'].flush_model()
         self.flush_recordset(['journal_id', 'transaction_details', 'payment_ref', 'company_id'])
         self.env.cr.execute(SQL("""
@@ -132,7 +139,7 @@ class AccountBankStatementLine(models.Model):
             st_line = self.browse(st_line_id).with_prefetch(self._prefetch_ids)
             st_line.partner_id = mapped_partner_id
 
-        # Global flushing (from parent - unchanged)
+        # Flush all required data
         self.env['account.account'].flush_model(['account_type', 'active'])
         self.env['account.move'].flush_model(['date', 'amount_total'])
         self.env['account.move.line'].flush_model([
@@ -140,7 +147,7 @@ class AccountBankStatementLine(models.Model):
             'reconciled', 'company_currency_id', 'amount_residual',
             'currency_id', 'amount_residual_currency',
             'discount_date', 'discount_balance', 'discount_amount_currency',
-            'statement_line_id',  # Added for exclusion check
+            'statement_line_id', 'balance', 'date',
         ])
         self.flush_recordset([
             'move_id', 'partner_id', 'company_id', 'currency_id',
@@ -148,7 +155,7 @@ class AccountBankStatementLine(models.Model):
         ])
         self.env['account.payment'].flush_model(['move_id', 'journal_id', 'memo'])
 
-        # Get reconciliable accounts (from parent - unchanged)
+        # Get reconciliable accounts (exclude cash/bank suspense accounts)
         account_ids = self.env['account.account'].search([
             ('reconcile', '=', True),
             ('account_type', 'not in', ('asset_cash', 'liability_credit_card'))
@@ -157,63 +164,316 @@ class AccountBankStatementLine(models.Model):
             ('type', 'in', ['bank', 'cash', 'credit'])
         ]).suspense_account_id
         account_ids = account_ids.ids
-
-        # Let parent handle: end_to_end_uuid matching, outstanding payments, payment_ref matching
-        # We skip to the final query that needs modification
         
+        if not account_ids:
+            return
+
         processed_st_line_ids = set()
         remaining_st_line_ids = set(self.ids)
 
-        # MODIFIED QUERY: Match by journal_id + date + amount (absolute match)
-        # Instead of partner-based matching, use exact date + amount + journal
-        # AND exclude all statement lines to prevent self-reconciliation
-        query = SQL("""
+        # =====================================================================
+        # STRATEGY 1: EXACT MATCH WITH REFERENCE (same journal + same date + amount + ref)
+        # Most reliable: exact date, amount, AND matching reference/invoice number
+        # =====================================================================
+        query_exact_ref = SQL("""
                 SELECT st_line.id AS st_line_id,
-                       ARRAY_AGG(aml.id ORDER BY aml.id ASC) AS all_aml_ids,
+                       ARRAY_AGG(aml.id ORDER BY aml.date ASC, aml.id ASC) AS all_aml_ids,
                        SUM(aml.amount_residual) AS total_residual
                   FROM account_bank_statement_line st_line
+                  JOIN account_move st_move ON st_line.move_id = st_move.id
                   JOIN account_move_line aml ON (
                        st_line.journal_id = aml.journal_id 
                        AND aml.company_id = st_line.company_id
-                       AND st_line.date = aml.date
+                       AND st_move.date = aml.date
                        AND ABS(st_line.amount) = ABS(aml.balance)
                   )
-                  JOIN account_move move ON aml.move_id = move.id
                  WHERE aml.move_id NOT IN %s
                    AND aml.reconciled = false
                    AND aml.account_id IN %s
                    AND aml.statement_line_id IS NULL
                    AND ((st_line.amount > 0 AND aml.balance > 0) OR (st_line.amount < 0 AND aml.balance < 0))
-                   AND (aml.parent_state IN ('draft', 'posted'))
+                   AND aml.parent_state IN ('draft', 'posted')
                    AND st_line.id IN %s
+                   AND (
+                       -- Reference matching: payment_ref contains move name or ref
+                       st_line.payment_ref ILIKE '%%' || aml.move_name || '%%'
+                       OR st_line.payment_ref ILIKE '%%' || COALESCE(aml.ref, '') || '%%'
+                       OR COALESCE(aml.ref, '') ILIKE '%%' || st_line.payment_ref || '%%'
+                   )
               GROUP BY st_line.id
         """, tuple(st_move_ids), tuple(account_ids), tuple(remaining_st_line_ids))
         
-        self.env.cr.execute(query)
+        self.env.cr.execute(query_exact_ref)
+        processed_st_line_ids.update(
+            self._process_auto_reconcile_matches(self.env.cr.fetchall())
+        )
+        remaining_st_line_ids -= processed_st_line_ids
 
-        # Process matches (from parent logic)
+        # =====================================================================
+        # STRATEGY 2: EXACT DATE MATCH (same journal + same date + exact amount)
+        # Very reliable: exact date and amount, but no reference match
+        # =====================================================================
+        if remaining_st_line_ids:
+            query_exact_date = SQL("""
+                    SELECT st_line.id AS st_line_id,
+                           ARRAY_AGG(aml.id ORDER BY aml.date ASC, aml.id ASC) AS all_aml_ids,
+                           SUM(aml.amount_residual) AS total_residual
+                      FROM account_bank_statement_line st_line
+                      JOIN account_move st_move ON st_line.move_id = st_move.id
+                      JOIN account_move_line aml ON (
+                           st_line.journal_id = aml.journal_id 
+                           AND aml.company_id = st_line.company_id
+                           AND st_move.date = aml.date
+                           AND ABS(st_line.amount) = ABS(aml.balance)
+                      )
+                     WHERE aml.move_id NOT IN %s
+                       AND aml.reconciled = false
+                       AND aml.account_id IN %s
+                       AND aml.statement_line_id IS NULL
+                       AND ((st_line.amount > 0 AND aml.balance > 0) OR (st_line.amount < 0 AND aml.balance < 0))
+                       AND aml.parent_state IN ('draft', 'posted')
+                       AND st_line.id IN %s
+                  GROUP BY st_line.id
+            """, tuple(st_move_ids), tuple(account_ids), tuple(remaining_st_line_ids))
+            
+            self.env.cr.execute(query_exact_date)
+            processed_st_line_ids.update(
+                self._process_auto_reconcile_matches(self.env.cr.fetchall())
+            )
+            remaining_st_line_ids -= processed_st_line_ids
+
+        # =====================================================================
+        # STRATEGY 3: AMOUNT MATCH WITH DATE TOLERANCE (within 7 days)
+        # Same journal + exact amount, but allow small date difference
+        # Prioritize: reference match > closest date > oldest entry
+        # =====================================================================
+        if remaining_st_line_ids:
+            query_amount = SQL("""
+                    SELECT st_line.id AS st_line_id,
+                           ARRAY_AGG(aml.id ORDER BY 
+                               -- Prioritize reference matches
+                               CASE WHEN (
+                                   st_line.payment_ref ILIKE '%%' || aml.move_name || '%%'
+                                   OR st_line.payment_ref ILIKE '%%' || COALESCE(aml.ref, '') || '%%'
+                                   OR COALESCE(aml.ref, '') ILIKE '%%' || st_line.payment_ref || '%%'
+                               ) THEN 0 ELSE 1 END ASC,
+                               -- Then by closest date
+                               ABS(st_move.date - aml.date) ASC,
+                               -- Then by oldest entry (FIFO)
+                               aml.date ASC,
+                               aml.id ASC
+                           ) AS all_aml_ids,
+                           SUM(aml.amount_residual) AS total_residual
+                      FROM account_bank_statement_line st_line
+                      JOIN account_move st_move ON st_line.move_id = st_move.id
+                      JOIN account_move_line aml ON (
+                           st_line.journal_id = aml.journal_id 
+                           AND aml.company_id = st_line.company_id
+                           AND ABS(st_move.date - aml.date) <= 7
+                           AND ABS(st_line.amount) = ABS(aml.balance)
+                      )
+                     WHERE aml.move_id NOT IN %s
+                       AND aml.reconciled = false
+                       AND aml.account_id IN %s
+                       AND aml.statement_line_id IS NULL
+                       AND ((st_line.amount > 0 AND aml.balance > 0) OR (st_line.amount < 0 AND aml.balance < 0))
+                       AND aml.parent_state IN ('draft', 'posted')
+                       AND st_line.id IN %s
+                  GROUP BY st_line.id
+            """, tuple(st_move_ids), tuple(account_ids), tuple(remaining_st_line_ids))
+            
+            self.env.cr.execute(query_amount)
+            processed_st_line_ids.update(
+                self._process_auto_reconcile_matches(self.env.cr.fetchall())
+            )
+            remaining_st_line_ids -= processed_st_line_ids
+
+        # =====================================================================
+        # STRATEGY 4: PARTIAL/COMBINED MATCH (combine items to match total)
+        # Same journal + within 30 days + items that sum to the statement amount
+        # =====================================================================
+        if remaining_st_line_ids:
+            # For each remaining statement line, try to find combinations
+            for st_line_id in list(remaining_st_line_ids):
+                st_line = self.browse(st_line_id)
+                if st_line.is_reconciled:
+                    continue
+                    
+                st_move = st_line.move_id
+                target_amount = st_line.amount
+                
+                # Find candidate journal items within 30 days
+                # Include move_name and ref for scoring in Python
+                query_candidates = SQL("""
+                    SELECT aml.id, aml.balance, aml.amount_residual, aml.date,
+                           aml.move_name, aml.ref
+                      FROM account_move_line aml
+                     WHERE aml.journal_id = %s
+                       AND aml.company_id = %s
+                       AND ABS(%s - aml.date) <= 30
+                       AND aml.move_id NOT IN %s
+                       AND aml.reconciled = false
+                       AND aml.account_id IN %s
+                       AND aml.statement_line_id IS NULL
+                       AND (((%s > 0 AND aml.balance > 0) OR (%s < 0 AND aml.balance < 0)))
+                       AND aml.parent_state IN ('draft', 'posted')
+                  ORDER BY ABS(%s - aml.date) ASC, ABS(ABS(aml.balance) - ABS(%s)) ASC
+                     LIMIT 15
+                """, st_line.journal_id.id, st_line.company_id.id, st_move.date,
+                     tuple(st_move_ids), tuple(account_ids),
+                     target_amount, target_amount, st_move.date, target_amount)
+                
+                self.env.cr.execute(query_candidates)
+                candidates = self.env.cr.fetchall()
+                
+                if not candidates:
+                    continue
+                
+                # Try to find a subset that sums to target_amount
+                # Pass payment_ref for reference-based scoring
+                payment_ref = st_line.payment_ref or ''
+                matching_ids = self._find_matching_combination(
+                    candidates, target_amount, st_line.currency_id, payment_ref
+                )
+                
+                if matching_ids:
+                    from odoo import SUPERUSER_ID
+                    st_line.with_user(SUPERUSER_ID).set_line_bank_statement_line(matching_ids)
+                    if st_line.currency_id.is_zero(st_line.amount_residual):
+                        processed_st_line_ids.add(st_line_id)
+                        remaining_st_line_ids.discard(st_line_id)
+
+        # Apply reconcile models to any remaining lines
+        if remaining_st_line_ids:
+            remaining_st_lines = self.browse(list(remaining_st_line_ids)).with_prefetch(self._prefetch_ids)
+            reco_models._apply_reconcile_models(remaining_st_lines)
+
+    def _process_auto_reconcile_matches(self, matches):
+        """
+        Process matches from SQL query and reconcile statement lines.
+        Returns set of processed statement line IDs.
+        """
         from odoo import SUPERUSER_ID
-        for st_line_id, all_aml_ids, total_residual in self.env.cr.fetchall():
+        processed = set()
+        
+        for st_line_id, all_aml_ids, total_residual in matches:
             st_line = self.browse(st_line_id).with_prefetch(self._prefetch_ids)
+            
+            if st_line.is_reconciled:
+                continue
+                
             if total_residual == st_line.amount:
-                # Total open amount equals the paid amount
+                # Total open amount equals the statement amount - perfect match
                 st_line.with_user(SUPERUSER_ID).set_line_bank_statement_line(all_aml_ids)
             elif all_aml_ids:
+                # Try partial matching
                 amls = self.env['account.move.line'].browse(all_aml_ids)
                 candidate_amls = self._invoice_matching_post_process(st_line, amls)
                 if candidate_amls:
                     st_line.with_user(SUPERUSER_ID).set_line_bank_statement_line(candidate_amls.ids)
 
             if st_line.currency_id.is_zero(st_line.amount_residual):
-                processed_st_line_ids.add(st_line.id)
+                processed.add(st_line_id)
+                
+        return processed
 
-        remaining_st_line_ids -= processed_st_line_ids
-
-        # Apply reconcile models to remaining lines
-        if remaining_st_line_ids:
-            remaining_st_lines = self.browse(list(remaining_st_line_ids)).with_prefetch(self._prefetch_ids)
-            reco_models._apply_reconcile_models(remaining_st_lines)
-
-        # Update cron check timestamp
-        from odoo import fields
-        self.write({'cron_last_check': fields.Datetime.now()})
+    def _find_matching_combination(self, candidates, target_amount, currency, payment_ref=''):
+        """
+        Find a combination of candidate journal items that sum to target_amount.
+        Uses a greedy algorithm with backtracking for efficiency.
+        
+        Args:
+            candidates: List of tuples (id, balance, amount_residual, date, move_name, ref)
+            target_amount: The target amount to match
+            currency: Currency record for rounding comparison
+            payment_ref: Statement line payment reference for matching
+            
+        Returns:
+            List of aml IDs that sum to target_amount, or empty list if no match found
+        """
+        if not candidates:
+            return []
+        
+        # Calculate reference match score for each candidate
+        def calc_ref_score(move_name, ref):
+            """Higher score = better reference match"""
+            if not payment_ref:
+                return 0
+            score = 0
+            payment_ref_lower = payment_ref.lower()
+            if move_name and move_name.lower() in payment_ref_lower:
+                score += 10
+            if ref and ref.lower() in payment_ref_lower:
+                score += 10
+            # Check for common invoice number patterns in payment_ref
+            invoice_patterns = re.findall(r'\b(INV[/-]?\d+|SI[/-]?\d+|\d{4,})\b', payment_ref, re.IGNORECASE)
+            for pattern in invoice_patterns:
+                if move_name and pattern.lower() in move_name.lower():
+                    score += 5
+                if ref and pattern.lower() in ref.lower():
+                    score += 5
+            return score
+            
+        # Convert to list of (id, residual, ref_score) for processing
+        # candidates format: (id, balance, amount_residual, date, move_name, ref)
+        items = []
+        for c in candidates:
+            item_id = c[0]
+            residual = c[2]
+            move_name = c[4] if len(c) > 4 else ''
+            ref = c[5] if len(c) > 5 else ''
+            ref_score = calc_ref_score(move_name, ref)
+            items.append((item_id, residual, ref_score))
+        
+        # Sort by reference score (highest first), then by amount proximity
+        items_sorted = sorted(items, key=lambda x: (-x[2], abs(abs(x[1]) - abs(target_amount))))
+        
+        # First check if any single item matches (prefer ones with ref match)
+        single_matches = [(item_id, residual, score) for item_id, residual, score in items_sorted 
+                          if currency.is_zero(residual - target_amount)]
+        if single_matches:
+            # Return the one with highest ref score
+            return [single_matches[0][0]]
+        
+        # Try combinations of 2 (prefer combinations with ref matches)
+        combos_2 = []
+        for i, (id1, res1, score1) in enumerate(items):
+            for id2, res2, score2 in items[i+1:]:
+                if currency.is_zero(res1 + res2 - target_amount):
+                    combos_2.append(([id1, id2], score1 + score2))
+        if combos_2:
+            # Return combo with highest total score
+            combos_2.sort(key=lambda x: -x[1])
+            return combos_2[0][0]
+        
+        # Try combinations of 3
+        if len(items) >= 3:
+            combos_3 = []
+            for i, (id1, res1, score1) in enumerate(items):
+                for j, (id2, res2, score2) in enumerate(items[i+1:], i+1):
+                    for id3, res3, score3 in items[j+1:]:
+                        if currency.is_zero(res1 + res2 + res3 - target_amount):
+                            combos_3.append(([id1, id2, id3], score1 + score2 + score3))
+            if combos_3:
+                combos_3.sort(key=lambda x: -x[1])
+                return combos_3[0][0]
+        
+        # For larger combinations, use greedy approach prioritizing ref matches
+        if len(items) >= 4:
+            # Sort by ref_score desc, then by largest amount
+            sorted_items = sorted(items, key=lambda x: (-x[2], -abs(x[1])))
+            selected = []
+            remaining = target_amount
+            
+            for item_id, residual, _ in sorted_items:
+                if currency.is_zero(remaining):
+                    break
+                if (remaining > 0 and residual > 0 and residual <= remaining + currency.rounding) or \
+                   (remaining < 0 and residual < 0 and residual >= remaining - currency.rounding):
+                    selected.append(item_id)
+                    remaining -= residual
+                    
+            if currency.is_zero(remaining):
+                return selected
+        
+        return []
