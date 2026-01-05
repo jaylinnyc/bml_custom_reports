@@ -1,20 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Add Auto Reconcile button to Bank Reconciliation Kanban View -->
-    <record id="view_bank_statement_line_kanban_inherit" model="ir.ui.view">
-        <field name="name">account.bank.statement.line.kanban.inherit</field>
-        <field name="model">account.bank.statement.line</field>
-        <field name="inherit_id" ref="account_accountant.view_bank_statement_line_kanban_bank_rec_widget"/>
-        <field name="arch" type="xml">
-            <xpath expr="//kanban" position="before">
-                <header>
-                    <button name="action_manual_auto_reconcile" 
-                            string="Auto Reconcile" 
-                            type="object" 
-                            class="btn-primary"
-                            icon="fa-magic"/>
-                </header>
-            </xpath>
+    <!-- Add Auto Reconcile server action for bank statement lines -->
+    <record id="action_bank_statement_line_auto_reconcile" model="ir.actions.server">
+        <field name="name">Auto Reconcile</field>
+        <field name="model_id" ref="account.model_account_bank_statement_line"/>
+        <field name="state">code</field>
+        <field name="code">
+if records:
+    action = records.action_manual_auto_reconcile()
+        </field>
+    </record>
+    
+    <!-- Add button to kanban view using action binding -->
+    <record id="action_bank_statement_line_auto_reconcile_binding" model="ir.actions.server">
+        <field name="name">Auto Reconcile</field>
+        <field name="model_id" ref="account.model_account_bank_statement_line"/>
+        <field name="binding_model_id" ref="account.model_account_bank_statement_line"/>
+        <field name="binding_view_types">kanban</field>
+        <field name="state">code</field>
+        <field name="code">
+# Get all unreconciled statement lines in the current view context
+domain = [('is_reconciled', '=', False)]
+if context.get('search_default_journal_id'):
+    domain.append(('journal_id', '=', context['search_default_journal_id']))
+    
+st_lines = env['account.bank.statement.line'].search(domain)
+if st_lines:
+    action = st_lines.action_manual_auto_reconcile()
         </field>
     </record>
 </odoo>
