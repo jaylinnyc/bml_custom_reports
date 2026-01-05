@@ -1,11 +1,54 @@
 # -*- coding: utf-8 -*-
 
-from odoo import models
+from odoo import models, api
 from odoo.tools import SQL
 
 
 class AccountBankStatementLine(models.Model):
     _inherit = 'account.bank.statement.line'
+
+    def action_manual_auto_reconcile(self):
+        """
+        Manual trigger for auto-reconciliation.
+        Runs the enhanced auto-reconcile logic on selected statement lines.
+        """
+        # Filter only unreconciled lines
+        unreconciled_lines = self.filtered(lambda l: not l.is_reconciled)
+        
+        if not unreconciled_lines:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'No Lines to Reconcile',
+                    'message': 'All selected lines are already reconciled.',
+                    'type': 'warning',
+                    'sticky': False,
+                }
+            }
+        
+        # Run auto-reconciliation on these lines
+        unreconciled_lines._try_auto_reconcile_statement_lines()
+        
+        # Count results
+        reconciled_count = len(self.filtered(lambda l: l.is_reconciled))
+        remaining_count = len(self) - reconciled_count
+        
+        message = f"Auto-reconciled {reconciled_count} of {len(self)} line(s)."
+        if remaining_count:
+            message += f" {remaining_count} line(s) could not be auto-matched."
+        
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Auto-Reconciliation Complete',
+                'message': message,
+                'type': 'success' if reconciled_count > 0 else 'warning',
+                'sticky': False,
+                'next': {'type': 'ir.actions.act_window_close'},
+            }
+        }
 
     def _try_auto_reconcile_statement_lines(self, company_id=None):
         """
