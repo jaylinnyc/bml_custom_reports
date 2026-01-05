@@ -1,9 +1,9 @@
 {
     'name': 'Custom Reports',
-    'version': '19.0.1.2.0',
+    'version': '19.0.1.3.0',
     'summary': 'Custom PDF reports with configurable headers and footers',
     'author': 'Jaylinnyc',
-    'depends': ['account', 'purchase', 'stock', 'web'],
+    'depends': ['account', 'account_accountant', 'purchase', 'stock', 'web'],
     'data': [
         'security/ir.model.access.csv',
         'views/res_company_views.xml',       # company settings for custom header

@@ -8,7 +8,7 @@
         <field name="arch" type="xml">
             <!-- Hide Accounting Date (date field) -->
             <xpath expr="//field[@name='date']" position="attributes">
-                <attribute name="column_invisible">True</attribute>
+                <attribute name="invisible">True</attribute>
             </xpath>
             
             <!-- Add Delivery Date field (below invoice_date) -->
