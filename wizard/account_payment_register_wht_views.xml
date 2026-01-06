@@ -3,10 +3,9 @@
     <!--
     Thailand WHT Payment Register Wizard Extension
     
-    This extends the standard payment register wizard to show:
-    1. WHT breakdown section showing taxes that will be recorded
-    2. Payment adjustments section for bank charges, etc.
-    3. Net payment calculation
+    Shows WHT breakdown for bills being paid (display only).
+    WHT entries are created by Odoo's native cash basis mechanism.
+    Payment adjustments use Odoo's built-in payment_difference feature.
     -->
 
     <record id="view_account_payment_register_form_wht" model="ir.ui.view">
@@ -14,10 +13,9 @@
         <field name="model">account.payment.register</field>
         <field name="inherit_id" ref="account.view_account_payment_register_form"/>
         <field name="arch" type="xml">
-            <!-- Add WHT section after the main payment fields -->
             <xpath expr="//group[@name='group2']" position="after">
                 
-                <!-- WHT Information Section -->
+                <!-- WHT Information Section (display only) -->
                 <group string="Withholding Tax Information" 
                        name="wht_section"
                        invisible="not has_wht"
@@ -25,65 +23,22 @@
                     
                     <field name="has_wht" invisible="1"/>
                     
-                    <!-- WHT Summary Fields -->
                     <group col="2">
-                        <field name="gross_amount" 
-                               string="Gross Amount (Before WHT)"
-                               readonly="1"/>
-                        <field name="total_wht_amount" 
-                               string="Total WHT Deducted"
-                               readonly="1"/>
+                        <field name="gross_amount" string="Gross Amount" readonly="1"/>
+                        <field name="total_wht_amount" string="WHT Deducted" readonly="1"/>
                     </group>
                     
-                    <!-- WHT Lines Detail -->
                     <group col="4" colspan="4">
                         <field name="wht_line_ids" nolabel="1" colspan="4">
-                            <list editable="bottom" create="false" delete="false">
-                                <field name="tax_name" string="Withholding Tax" readonly="1"/>
+                            <list create="false" delete="false">
+                                <field name="tax_name" string="WHT Tax" readonly="1"/>
                                 <field name="rate" string="Rate (%)" readonly="1"/>
-                                <field name="base_amount" string="Base Amount" sum="Total Base" readonly="1"/>
-                                <field name="wht_amount" string="WHT Amount" sum="Total WHT" readonly="1"/>
+                                <field name="base_amount" sum="Total" readonly="1"/>
+                                <field name="wht_amount" sum="Total" readonly="1"/>
                                 <field name="currency_id" column_invisible="True"/>
                             </list>
                         </field>
                     </group>
-                    
-                    <div colspan="4" class="alert alert-info" role="alert">
-                        <i class="fa fa-info-circle"/> 
-                        Withholding tax journal entries will be created automatically when this payment is confirmed.
-                    </div>
-                </group>
-                
-                <!-- Payment Adjustments Section -->
-                <group string="Payment Adjustments" 
-                       name="adjustment_section"
-                       col="4">
-                    
-                    <field name="adjustment_line_ids" nolabel="1" colspan="4">
-                        <list editable="bottom">
-                            <field name="name" string="Description"/>
-                            <field name="account_id" string="Account" 
-                                   options="{'no_create': True}"/>
-                            <field name="amount" string="Amount" sum="Total Adjustments"/>
-                            <field name="currency_id" column_invisible="True"/>
-                        </list>
-                    </field>
-                    
-                    <group col="2" colspan="4">
-                        <field name="total_adjustment_amount" 
-                               string="Total Adjustments"
-                               readonly="1"/>
-                        <field name="net_payment_amount" 
-                               string="Net Payment Amount"
-                               readonly="1"
-                               class="oe_subtotal_footer_separator"/>
-                    </group>
-                    
-                    <div colspan="4" class="text-muted small">
-                        <i class="fa fa-info-circle"/>
-                        Add adjustments for bank charges, transfer fees, or other deductions/additions.
-                        Positive amounts reduce the payment; negative amounts increase it.
-                    </div>
                 </group>
                 
             </xpath>
