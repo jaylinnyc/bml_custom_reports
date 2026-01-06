@@ -113,6 +113,29 @@ order_reference = fields.Reference(
     string='Order',
     selection=[('sale.order', 'Sales Order')],
     aggregator="count_distinct",
+```
+
+### 3. Removed/Changed Fields in Odoo 19
+
+#### account.account
+- **`deprecated` field REMOVED** - Use `active` field instead
+  ```python
+  # OLD (Odoo ≤17) - WILL FAIL in Odoo 19
+  account_id = fields.Many2one(
+      'account.account',
+      domain="[('deprecated', '=', False)]"
+  )
+  
+  # NEW (Odoo 19) - deprecated field doesn't exist
+  # Option 1: No filter needed (inactive accounts hidden by default)
+  account_id = fields.Many2one('account.account')
+  
+  # Option 2: Explicitly filter by active if needed
+  account_id = fields.Many2one(
+      'account.account',
+      domain="[('active', '=', True)]"
+  )
+  ```
 )
 ```
 

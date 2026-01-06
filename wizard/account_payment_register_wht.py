@@ -347,7 +347,7 @@ class AccountPaymentRegisterAdjustment(models.TransientModel):
         comodel_name='account.account',
         string="Account",
         required=True,
-        domain="[('deprecated', '=', False), ('account_type', 'not in', ('asset_receivable', 'liability_payable'))]",
+        domain="[('account_type', 'not in', ('asset_receivable', 'liability_payable'))]",
     )
     
     currency_id = fields.Many2one(
