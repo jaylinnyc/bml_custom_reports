@@ -136,6 +136,35 @@ order_reference = fields.Reference(
       domain="[('active', '=', True)]"
   )
   ```
+
+### 4. Computed Fields - Stored vs Non-Stored (IMPORTANT)
+
+In Odoo 19, computed fields with **different `store` values** must use **separate compute methods**.
+
+```python
+# BAD - Will cause UserWarning in Odoo 19
+# "inconsistent 'store' for computed fields"
+field_a = fields.One2many(..., compute='_compute_all')  # Not stored
+field_b = fields.Float(..., compute='_compute_all', store=True)  # Stored
+
+def _compute_all(self):  # Same method for both = WARNING
+    ...
+
+# GOOD - Separate compute methods for stored vs non-stored
+field_a = fields.One2many(..., compute='_compute_field_a')  # Not stored
+field_b = fields.Float(..., compute='_compute_stored_fields', store=True)  # Stored
+
+def _compute_field_a(self):
+    """Non-stored computed field"""
+    ...
+
+def _compute_stored_fields(self):
+    """Stored computed fields"""
+    ...
+```
+
+**Also applies to `compute_sudo`** - fields with different `compute_sudo` values need separate methods.
+
 )
 ```
 

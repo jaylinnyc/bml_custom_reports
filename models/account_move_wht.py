@@ -33,15 +33,17 @@ class AccountMove(models.Model):
     # Computed Fields for WHT Information
     # -------------------------------------------------------------------------
     
+    # Non-stored computed field (separate compute method required in Odoo 19)
     wht_tax_line_ids = fields.One2many(
         comodel_name='account.move.line',
-        compute='_compute_wht_info',
+        compute='_compute_wht_tax_line_ids',
         string="WHT Tax Lines",
         help="Tax lines that are withholding taxes"
     )
     
+    # Stored computed fields (use separate compute method from non-stored)
     wht_amount = fields.Monetary(
-        compute='_compute_wht_info',
+        compute='_compute_wht_amounts',
         string="Withholding Tax Amount",
         currency_field='currency_id',
         store=True,
@@ -49,14 +51,14 @@ class AccountMove(models.Model):
     )
     
     has_wht = fields.Boolean(
-        compute='_compute_wht_info',
+        compute='_compute_wht_amounts',
         string="Has Withholding Tax",
         store=True,
         help="True if this bill has withholding taxes"
     )
     
     wht_base_amount = fields.Monetary(
-        compute='_compute_wht_info',
+        compute='_compute_wht_amounts',
         string="WHT Base Amount",
         currency_field='currency_id',
         store=True,
@@ -71,20 +73,23 @@ class AccountMove(models.Model):
         help="True if withholding tax has been posted to journal (at payment time)"
     )
 
+    @api.depends('line_ids', 'line_ids.tax_line_id')
+    def _compute_wht_tax_line_ids(self):
+        """Compute WHT tax lines (non-stored)"""
+        for move in self:
+            move.wht_tax_line_ids = move.line_ids.filtered(
+                lambda l: l.tax_line_id and self._is_withholding_tax(l.tax_line_id)
+            )
+
     @api.depends('line_ids', 'line_ids.tax_line_id', 'line_ids.balance', 'line_ids.tax_base_amount')
-    def _compute_wht_info(self):
-        """
-        Compute withholding tax information from invoice lines.
-        WHT taxes are identified by name containing 'Withholding' and being Purchase type.
-        """
+    def _compute_wht_amounts(self):
+        """Compute WHT amounts (stored fields)"""
         for move in self:
             wht_lines = move.line_ids.filtered(
                 lambda l: l.tax_line_id and self._is_withholding_tax(l.tax_line_id)
             )
             
-            move.wht_tax_line_ids = wht_lines
             move.has_wht = bool(wht_lines)
-            
             # WHT amount is typically negative (deduction), we show absolute value
             move.wht_amount = abs(sum(wht_lines.mapped('balance')))
             move.wht_base_amount = abs(sum(wht_lines.mapped('tax_base_amount')))
