@@ -345,7 +345,7 @@ class WhtTextExportWizard(models.TransientModel):
             address.get('amphoe', ''),               # 30. District
             address.get('province', ''),             # 31. Province
             address.get('zip', ''),                  # 32. Postal code
-            partner.phone or partner.mobile or '',  # 33. Phone
+            partner.phone or '',                     # 33. Phone
             format_date_buddhist(payment_date, 'DDMMYYYY'),  # 34. Payment date
             self._get_income_description(bill),      # 35. Income description
             '.00',                                   # 36. Tax rate indicator
