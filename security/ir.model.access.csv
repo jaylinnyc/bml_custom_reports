@@ -1,3 +1,6 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_bml_report_footer_config_user,bml.report.footer.config.user,model_bml_report_footer_config,base.group_user,1,0,0,0
 access_bml_report_footer_config_admin,bml.report.footer.config.admin,model_bml_report_footer_config,base.group_erp_manager,1,1,1,1
+access_account_payment_register_wht_line,account.payment.register.wht.line,model_account_payment_register_wht_line,account.group_account_invoice,1,1,1,1
+access_account_payment_register_adjustment,account.payment.register.adjustment,model_account_payment_register_adjustment,account.group_account_invoice,1,1,1,1
+access_wht_text_export_wizard,wht.text.export.wizard,model_wht_text_export_wizard,account.group_account_user,1,1,1,1

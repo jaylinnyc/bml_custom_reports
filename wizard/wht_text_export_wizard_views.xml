@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+    Thailand WHT Text Export Wizard Views
+    
+    Wizard to export withholding tax data in Thai Revenue Department
+    pipe-delimited text format for PND submission.
+    -->
+
+    <!-- WHT Export Wizard Form View -->
+    <record id="view_wht_text_export_wizard_form" model="ir.ui.view">
+        <field name="name">wht.text.export.wizard.form</field>
+        <field name="model">wht.text.export.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Export WHT to Text File">
+                <field name="state" invisible="1"/>
+                
+                <!-- Draft State - Filter Selection -->
+                <group invisible="state != 'draft'">
+                    <group string="Date Range">
+                        <field name="date_from"/>
+                        <field name="date_to"/>
+                    </group>
+                    <group string="Export Options">
+                        <field name="pnd_form_type"/>
+                        <field name="income_type"/>
+                        <field name="company_id" groups="base.group_multi_company"/>
+                    </group>
+                </group>
+                
+                <!-- Done State - Results -->
+                <group invisible="state != 'done'">
+                    <group string="Export Summary">
+                        <field name="record_count"/>
+                        <field name="total_base_amount"/>
+                        <field name="total_wht_amount"/>
+                    </group>
+                    <group string="Download">
+                        <field name="file_name" readonly="1"/>
+                        <field name="file_data" filename="file_name"/>
+                    </group>
+                </group>
+                
+                <footer>
+                    <button name="action_export" 
+                            string="Export" 
+                            type="object" 
+                            class="btn-primary"
+                            invisible="state != 'draft'"/>
+                    <button name="action_back" 
+                            string="Export Another" 
+                            type="object"
+                            invisible="state != 'done'"/>
+                    <button string="Close" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action to open WHT Export Wizard -->
+    <record id="action_wht_text_export_wizard" model="ir.actions.act_window">
+        <field name="name">Export WHT to Text</field>
+        <field name="res_model">wht.text.export.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{}</field>
+    </record>
+
+    <!-- Menu Items -->
+    <!-- Add under Accounting > Reports > Tax Reports -->
+    <menuitem id="menu_wht_text_export"
+              name="Export WHT (Text)"
+              parent="account.menu_finance_reports"
+              action="action_wht_text_export_wizard"
+              sequence="100"/>
+
+</odoo>

@@ -1,7 +1,7 @@
 {
     'name': 'Custom Reports',
-    'version': '19.0.1.5.0',
-    'summary': 'Custom PDF reports with configurable headers and footers',
+    'version': '19.0.1.6.0',
+    'summary': 'Custom PDF reports with configurable headers and footers, Thai WHT handling',
     'author': 'Jaylinnyc',
     'depends': ['account', 'account_accountant', 'purchase', 'stock', 'web'],
     'data': [
@@ -14,6 +14,9 @@
         'views/report_inventory_operations.xml',  # inventory repair & consumption reports
         'views/account_move_views.xml',      # hide accounting date, show delivery date
         'data/report_footer_data.xml',       # default footer configurations
+        # WHT Handling
+        'wizard/account_payment_register_wht_views.xml',
+        'wizard/wht_text_export_wizard_views.xml',
     ],
     'assets': {
         'web.assets_backend': [
