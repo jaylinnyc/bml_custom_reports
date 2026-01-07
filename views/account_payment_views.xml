@@ -47,10 +47,11 @@
                 <div colspan="2" 
                      invisible="not apply_charge_deduction or charge_amount == 0"
                      class="alert alert-info mt-2 mb-2" role="status">
-                    <strong>Summary:</strong><br/>
-                    Payment Received: <field name="amount" readonly="1" class="oe_inline" widget="monetary" options="{'currency_field': 'currency_id'}"/><br/>
-                    + Charge Deduction: <field name="charge_amount" readonly="1" class="oe_inline" widget="monetary" options="{'currency_field': 'currency_id'}"/><br/>
-                    <strong>= Total Applied to Invoices: <field name="gross_amount" readonly="1" class="oe_inline" widget="monetary" options="{'currency_field': 'currency_id'}"/></strong>
+                    <strong>Payment Summary:</strong><br/>
+                    <span invisible="not selected_invoice_ids">Invoice Total: <field name="selected_invoices_amount" readonly="1" class="oe_inline" widget="monetary" options="{'currency_field': 'currency_id'}"/><br/></span>
+                    Applied to Invoices: <field name="amount" readonly="1" class="oe_inline" widget="monetary" options="{'currency_field': 'currency_id'}"/><br/>
+                    − Charge Deduction: <field name="charge_amount" readonly="1" class="oe_inline" widget="monetary" options="{'currency_field': 'currency_id'}"/><br/>
+                    <strong>= Received in Bank: <field name="bank_amount" readonly="1" class="oe_inline" widget="monetary" options="{'currency_field': 'currency_id'}"/></strong>
                 </div>
             </xpath>
             
