@@ -204,10 +204,6 @@ class AccountPayment(models.Model):
         OUTBOUND (Vendor Payment):
         - Amount = 1000 (bill amount), Adjustment = 100, Bank pays = 1100
         - Journal: Payable 1000 Dr, Expense 100 Dr, Bank 1100 Cr
-        
-        NOTE: Odoo's base implementation ignores force_balance when write_off_line_vals is provided.
-        So for inbound, we use write_off which naturally reduces counterpart.
-        For outbound, we use force_balance (no write_off passed to super) and add adjustment line after.
         """
         if not (self.apply_charge_deduction and self.charge_amount > 0 and self.charge_account_id):
             # No adjustment - use standard behavior
@@ -252,15 +248,28 @@ class AccountPayment(models.Model):
                 force_balance=force_balance
             )
         else:
-            # OUTBOUND: Use force_balance WITHOUT write_off to get correct counterpart
-            # force_balance = -1100 (credit bank), counterpart = -(-1100) = +1000 (debit payable)
-            # Then add adjustment line manually after super call
-            force_balance = -bank_balance  # -1100 (credit bank)
+            # OUTBOUND: Get base lines then modify bank line and add adjustment
+            # Base creates: Bank -1000, Payable +1000
+            # We need: Bank -1100, Payable +1000, Expense +100
             line_vals_list = super()._prepare_move_line_default_vals(
-                write_off_line_vals=write_off_line_vals,  # Pass through any existing write-offs, not our adjustment
+                write_off_line_vals=write_off_line_vals,
                 force_balance=force_balance
             )
-            # Add adjustment line for outbound
+            
+            # Modify the liquidity (bank) line to include adjustment
+            # Bank line is first, has account = outstanding_account_id
+            for line_vals in line_vals_list:
+                if line_vals.get('account_id') == self.outstanding_account_id.id:
+                    # This is the bank/liquidity line - add adjustment to it
+                    # Original: amount_currency=-1000, balance=-1000
+                    # New: amount_currency=-1100, balance=-1100
+                    line_vals['amount_currency'] = -self.bank_amount  # -1100
+                    line_vals['balance'] = -bank_balance
+                    line_vals['debit'] = 0.0
+                    line_vals['credit'] = bank_balance  # 1100
+                    break
+            
+            # Add adjustment line
             return line_vals_list + [adjustment_line]
 
     @api.model
