@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+    Account Payment View Extension - Invoice Selector
+    
+    Adds invoice selection capability to customer payments.
+    Allows users to select unpaid invoices when creating a direct payment.
+    -->
+
+    <record id="view_account_payment_form_invoice_selector" model="ir.ui.view">
+        <field name="name">account.payment.form.invoice.selector</field>
+        <field name="model">account.payment</field>
+        <field name="inherit_id" ref="account.view_account_payment_form"/>
+        <field name="priority">20</field>
+        <field name="arch" type="xml">
+            
+            <!-- Add technical field -->
+            <xpath expr="//field[@name='partner_type']" position="after">
+                <field name="show_invoice_selector" invisible="1"/>
+            </xpath>
+            
+            <!-- Add invoice selector section after main group -->
+            <xpath expr="//group[@name='main_group']" position="after">
+                <group string="Link to Invoices" 
+                       name="invoice_selector_group"
+                       invisible="not show_invoice_selector"
+                       col="4">
+                    
+                    <group colspan="4">
+                        <field name="selected_invoice_ids" 
+                               widget="many2many_tags"
+                               placeholder="Select unpaid invoices..."
+                               options="{'no_create': True, 'color_field': 'payment_state'}"
+                               domain="[('move_type', 'in', ['out_invoice', 'out_refund']), 
+                                       ('state', '=', 'posted'), 
+                                       ('payment_state', 'in', ['not_paid', 'partial']), 
+                                       ('partner_id', '=', partner_id)]"
+                               context="{'default_partner_id': partner_id}"/>
+                    </group>
+                    
+                    <group colspan="2">
+                        <field name="selected_invoices_amount" 
+                               string="Total Due"
+                               readonly="1"
+                               invisible="not selected_invoice_ids"/>
+                    </group>
+                    
+                    <!-- Detailed invoice list view -->
+                    <group colspan="4" invisible="not selected_invoice_ids">
+                        <field name="selected_invoice_ids" nolabel="1" colspan="4">
+                            <list create="false" delete="true" editable="bottom">
+                                <field name="name" string="Invoice" readonly="1"/>
+                                <field name="invoice_date" string="Date" readonly="1"/>
+                                <field name="amount_total" string="Total" readonly="1"/>
+                                <field name="amount_residual" string="Amount Due" readonly="1"/>
+                                <field name="payment_state" string="Status" 
+                                       widget="badge"
+                                       decoration-warning="payment_state == 'partial'"
+                                       decoration-danger="payment_state == 'not_paid'"
+                                       readonly="1"/>
+                                <field name="currency_id" column_invisible="True"/>
+                            </list>
+                        </field>
+                    </group>
+                    
+                </group>
+            </xpath>
+            
+        </field>
+    </record>
+
+</odoo>

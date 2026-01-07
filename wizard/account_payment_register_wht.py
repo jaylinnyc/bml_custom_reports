@@ -24,22 +24,40 @@ class AccountPaymentRegister(models.TransientModel):
     Extend the payment register wizard to display Thai withholding tax information.
     This is purely informational - WHT entries are created by Odoo's cash basis.
     
-    Also adds manual writeoff toggle for scenarios like:
-    - Advance payments (before invoice exists)
-    - Split payments (intentional partial payment)
-    - Bank charges adjustment
+    Also adds simplified adjustment feature for scenarios like:
+    - Bank charges deduction
+    - Partial/split payments with writeoff
     """
     _inherit = 'account.payment.register'
 
     # -------------------------------------------------------------------------
-    # Manual Writeoff Toggle
+    # Simplified Payment Adjustment
     # -------------------------------------------------------------------------
     
-    force_writeoff = fields.Boolean(
-        string="Apply Adjustment",
+    apply_adjustment = fields.Boolean(
+        string="Deduct Charges",
         default=False,
-        help="Enable to manually add payment adjustments (bank charges, partial payments, etc.) "
-             "even when there's no automatic difference detected."
+        help="Enable to deduct bank charges or other fees from this payment"
+    )
+    
+    adjustment_amount = fields.Monetary(
+        string="Charge Amount",
+        currency_field='currency_id',
+        default=0.0,
+        help="Amount to deduct (e.g., bank transfer fee). Will be posted to the selected account."
+    )
+    
+    adjustment_account_id = fields.Many2one(
+        comodel_name='account.account',
+        string="Charge Account",
+        domain="[('account_type', 'in', ['expense', 'expense_direct_cost'])]",
+        help="Account to post the charge (e.g., Bank Charges expense account)"
+    )
+    
+    adjustment_label = fields.Char(
+        string="Charge Description",
+        default="Bank Charges",
+        help="Description for the journal entry line"
     )
     
     show_writeoff_section = fields.Boolean(
@@ -48,13 +66,13 @@ class AccountPaymentRegister(models.TransientModel):
         help="Technical field to control visibility of writeoff section"
     )
 
-    @api.depends('force_writeoff', 'payment_difference', 'early_payment_discount_mode', 
+    @api.depends('apply_adjustment', 'payment_difference', 'early_payment_discount_mode', 
                  'can_edit_wizard', 'can_group_payments', 'group_payment', 'payment_method_line_id')
     def _compute_show_writeoff_section(self):
         """Show writeoff section when manually enabled OR when there's a payment difference."""
         for wizard in self:
             # Show if manually forced
-            if wizard.force_writeoff:
+            if wizard.apply_adjustment:
                 wizard.show_writeoff_section = True
             # Or show based on standard Odoo logic (payment_difference exists)
             else:
@@ -65,6 +83,34 @@ class AccountPaymentRegister(models.TransientModel):
                     and (not wizard.can_group_payments or wizard.group_payment)
                     and wizard.payment_method_line_id.payment_account_id
                 )
+
+    @api.onchange('apply_adjustment', 'adjustment_amount')
+    def _onchange_adjustment(self):
+        """When adjustment is enabled/changed, set Odoo's writeoff fields accordingly."""
+        if self.apply_adjustment and self.adjustment_amount > 0:
+            # Set Odoo's native fields to handle the writeoff
+            self.payment_difference_handling = 'reconcile'
+            self.writeoff_account_id = self.adjustment_account_id
+            self.writeoff_label = self.adjustment_label or 'Bank Charges'
+            # Reduce payment amount by the charge
+            if self.can_edit_wizard:
+                total_values = self._get_total_amounts_to_pay(self.batches)
+                self.amount = total_values.get('amount_by_default', self.amount) - self.adjustment_amount
+        elif not self.apply_adjustment:
+            # Reset to default
+            self.payment_difference_handling = 'open'
+
+    @api.onchange('adjustment_account_id')
+    def _onchange_adjustment_account(self):
+        """Sync adjustment account to Odoo's writeoff account."""
+        if self.apply_adjustment and self.adjustment_account_id:
+            self.writeoff_account_id = self.adjustment_account_id
+
+    @api.onchange('adjustment_label')
+    def _onchange_adjustment_label(self):
+        """Sync adjustment label to Odoo's writeoff label."""
+        if self.apply_adjustment and self.adjustment_label:
+            self.writeoff_label = self.adjustment_label
 
     # -------------------------------------------------------------------------
     # WHT Display Fields (informational only)
