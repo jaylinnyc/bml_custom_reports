@@ -192,70 +192,65 @@ class AccountPayment(models.Model):
         Debit:  Bank Charges (Expense)  100   (the fee)
         Credit: Accounts Receivable    1000   (customer's payment)
         
-        To achieve this with Odoo's write-off mechanism:
-        - The write-off amount_currency should be NEGATIVE (to reduce counterpart credit)
-        - But balance should be POSITIVE (to create debit on expense account)
+        To achieve this, we need:
+        - Liquidity (Bank) line: Odoo creates this from self.amount, but we need to reduce it
+        - Write-off line: Creates the expense debit
+        - Counterpart (Receivable): Should be full amount (1000)
         
-        Actually, Odoo's mechanism adds write-off to counterpart, so we need different approach.
-        We use NEGATIVE write-off amount_currency to reduce liquidity, creating debit on expense.
+        Using Odoo's write-off mechanism with NEGATIVE amount_currency:
+        - This reduces the counterpart credit, which is NOT what we want
+        
+        The solution: Use force_balance to reduce bank to 900, and write-off with
+        POSITIVE amount_currency to ADD to counterpart credit (making it 1000).
         """
-        # Add charge line to write_off_line_vals if charge deduction is enabled
+        # Handle charge deduction
         if self.apply_charge_deduction and self.charge_amount > 0 and self.charge_account_id:
-            # Convert charge amount to company currency for balance
+            # Convert amounts to company currency
             charge_balance = self.currency_id._convert(
                 self.charge_amount,
                 self.company_id.currency_id,
                 self.company_id,
                 self.date,
             )
+            bank_balance = self.currency_id._convert(
+                self.bank_amount,  # 900 = amount - charge
+                self.company_id.currency_id,
+                self.company_id,
+                self.date,
+            )
             
-            # Bank Charge Scenario (inbound payment) - NEW LOGIC:
-            # - User enters Payment Amount = 1000 (total applied to invoices)
-            # - Charge Amount = 100 (bank fee)
-            # - Bank Amount = 900 (what's actually received in bank)
+            # Bank Charge Scenario (inbound payment):
+            # - Payment Amount = 1000 (what customer paid / applied to invoice)
+            # - Charge Amount = 100 (bank fee - our expense)
+            # - Bank Amount = 900 (net received in bank)
             #
             # Desired Journal Entry:
-            # Debit:  Bank (Outstanding)      900   (bank_amount - net received)
-            # Debit:  Bank Charges (Expense)  100   (charge)
-            # Credit: Accounts Receivable    1000   (payment amount - applied to invoices)
+            # Debit:  Bank (Outstanding)      900   (net received)
+            # Debit:  Bank Charges (Expense)  100   (our expense)
+            # Credit: Accounts Receivable    1000   (full customer payment)
             #
-            # Odoo uses self.amount (1000) for liquidity line.
-            # Odoo's formula: counterpart = -liquidity - write_off_amount_currency
-            # 
-            # With liquidity = 1000 and counterpart should be -1000:
-            # -1000 = -1000 - write_off_amount_currency
-            # write_off_amount_currency = 0 (counterpart stays at -1000, correct!)
+            # Odoo's formula: counterpart_balance = -liquidity_balance - sum(write_off_balances)
             #
-            # But we need liquidity to be 900, not 1000.
-            # Use NEGATIVE amount_currency to reduce liquidity:
-            # Effective liquidity = 1000 + (-100) = 900 ✓
-            # Counterpart = -1000 - (-100) = -900... wait, that's wrong.
-            #
-            # Actually, the write-off creates a SEPARATE line, not adjusting liquidity.
-            # The charge line itself debits the expense account.
-            # We need: negative amount_currency so counterpart calculation gives -1000
-            # counterpart = -liquidity - write_off = -1000 - (-100) = -900 ❌
-            #
-            # Correct approach: amount_currency = 0 keeps counterpart at -1000
-            # The balance creates debit on expense, but doesn't balance!
-            #
-            # NEW APPROACH: Override the liquidity amount using force_balance
-            # Actually simpler: use positive amount_currency = 100
-            # This makes: counterpart = -1000 - 100 = -1100 ❌ (too much credit)
-            #
-            # The REAL solution: We need to modify how Odoo creates the liquidity line.
-            # Since Odoo uses self.amount for liquidity, and we want bank_amount:
-            # We pass force_balance to adjust the liquidity line amount.
+            # With force_balance = 900 (bank line):
+            # - Liquidity balance = +900 (debit bank)
+            # - Write-off balance = +100 (debit expense)  
+            # - Counterpart = -900 - 100 = -1000 (credit receivable 1000) ✓
             
-            # Use NEGATIVE amount_currency to create the expense DEBIT
-            # and let Odoo's balancing mechanism handle the rest
+            # Set force_balance to bank_amount (reduces bank from 1000 to 900)
+            if self.payment_type == 'inbound':
+                force_balance = bank_balance  # +900
+            else:
+                force_balance = -bank_balance
+            
+            # Charge line: POSITIVE balance creates DEBIT on expense account
+            # POSITIVE amount_currency ADDS to counterpart credit
             charge_line = {
                 'name': self.charge_label or 'Bank Charges',
                 'account_id': self.charge_account_id.id,
                 'partner_id': self.partner_id.id if self.partner_id else False,
                 'currency_id': self.currency_id.id,
-                'amount_currency': -self.charge_amount if self.payment_type == 'inbound' else self.charge_amount,
-                'balance': -charge_balance if self.payment_type == 'inbound' else charge_balance,
+                'amount_currency': self.charge_amount if self.payment_type == 'inbound' else -self.charge_amount,
+                'balance': charge_balance if self.payment_type == 'inbound' else -charge_balance,
             }
             if write_off_line_vals is None:
                 write_off_line_vals = []
