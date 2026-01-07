@@ -134,23 +134,33 @@ class AccountPayment(models.Model):
             if self.partner_id and any(inv.partner_id != self.partner_id for inv in self.selected_invoice_ids):
                 self.selected_invoice_ids = [(5, 0, 0)]  # Clear all
 
-    def _prepare_move_line_default_vals(self, write_off_line_vals=None):
+    def _prepare_move_line_default_vals(self, write_off_line_vals=None, force_balance=None):
         """Override to add charge deduction line if applicable."""
         # Add charge line to write_off_line_vals if charge deduction is enabled
         if self.apply_charge_deduction and self.charge_amount > 0 and self.charge_account_id:
+            # Convert charge amount to company currency for balance
+            charge_balance = self.currency_id._convert(
+                self.charge_amount,
+                self.company_id.currency_id,
+                self.company_id,
+                self.date,
+            )
             charge_line = {
                 'name': self.charge_label or 'Bank Charges',
                 'account_id': self.charge_account_id.id,
                 'partner_id': self.partner_id.id if self.partner_id else False,
                 'currency_id': self.currency_id.id,
                 'amount_currency': self.charge_amount if self.payment_type == 'inbound' else -self.charge_amount,
-                'balance': self.charge_amount if self.payment_type == 'inbound' else -self.charge_amount,
+                'balance': charge_balance if self.payment_type == 'inbound' else -charge_balance,
             }
             if write_off_line_vals is None:
                 write_off_line_vals = []
             write_off_line_vals = list(write_off_line_vals) + [charge_line]
         
-        return super()._prepare_move_line_default_vals(write_off_line_vals=write_off_line_vals)
+        return super()._prepare_move_line_default_vals(
+            write_off_line_vals=write_off_line_vals, 
+            force_balance=force_balance
+        )
 
     def action_post(self):
         """Override to link selected invoices and trigger reconciliation."""
