@@ -3,19 +3,46 @@
     <!--
     Thailand WHT Payment Register Wizard Extension
     
-    Shows WHT breakdown for bills being paid (display only).
-    WHT entries are created by Odoo's native cash basis mechanism.
-    Payment adjustments use Odoo's built-in payment_difference feature.
+    Features:
+    1. Shows WHT breakdown for bills being paid (display only)
+       WHT entries are created by Odoo's native cash basis mechanism.
+    2. Manual writeoff toggle - allows applying adjustments even without
+       automatic payment difference (for advance/split payments, bank charges)
     -->
 
     <record id="view_account_payment_register_form_wht" model="ir.ui.view">
         <field name="name">account.payment.register.form.wht</field>
         <field name="model">account.payment.register</field>
         <field name="inherit_id" ref="account.view_account_payment_register_form"/>
+        <field name="priority">20</field>
         <field name="arch" type="xml">
+            
+            <!-- Add invisible technical field -->
+            <xpath expr="//field[@name='hide_writeoff_section']" position="after">
+                <field name="show_writeoff_section" invisible="1"/>
+            </xpath>
+            
+            <!-- Add manual adjustment toggle after group_payment field -->
+            <xpath expr="//field[@name='group_payment']" position="after">
+                <field name="force_writeoff" 
+                       string="Apply Adjustment"
+                       widget="boolean_toggle"
+                       invisible="not can_edit_wizard"
+                       help="Enable to manually add payment adjustments (bank charges, partial payments, advance payments)"/>
+            </xpath>
+            
+            <!-- Override the payment_difference label visibility to use our computed field -->
+            <xpath expr="//label[@for='payment_difference']" position="attributes">
+                <attribute name="invisible">not show_writeoff_section</attribute>
+            </xpath>
+            
+            <!-- Override the payment_difference div visibility to use our computed field -->
+            <xpath expr="//label[@for='payment_difference']/following-sibling::div[1]" position="attributes">
+                <attribute name="invisible">not show_writeoff_section</attribute>
+            </xpath>
+            
+            <!-- WHT Information Section (display only for vendor bills) -->
             <xpath expr="//group[@name='group2']" position="after">
-                
-                <!-- WHT Information Section (display only) -->
                 <group string="Withholding Tax Information" 
                        name="wht_section"
                        invisible="not has_wht"
@@ -40,8 +67,8 @@
                         </field>
                     </group>
                 </group>
-                
             </xpath>
+            
         </field>
     </record>
 

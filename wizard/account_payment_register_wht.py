@@ -23,8 +23,48 @@ class AccountPaymentRegister(models.TransientModel):
     """
     Extend the payment register wizard to display Thai withholding tax information.
     This is purely informational - WHT entries are created by Odoo's cash basis.
+    
+    Also adds manual writeoff toggle for scenarios like:
+    - Advance payments (before invoice exists)
+    - Split payments (intentional partial payment)
+    - Bank charges adjustment
     """
     _inherit = 'account.payment.register'
+
+    # -------------------------------------------------------------------------
+    # Manual Writeoff Toggle
+    # -------------------------------------------------------------------------
+    
+    force_writeoff = fields.Boolean(
+        string="Apply Adjustment",
+        default=False,
+        help="Enable to manually add payment adjustments (bank charges, partial payments, etc.) "
+             "even when there's no automatic difference detected."
+    )
+    
+    show_writeoff_section = fields.Boolean(
+        string="Show Writeoff Section",
+        compute='_compute_show_writeoff_section',
+        help="Technical field to control visibility of writeoff section"
+    )
+
+    @api.depends('force_writeoff', 'payment_difference', 'early_payment_discount_mode', 
+                 'can_edit_wizard', 'can_group_payments', 'group_payment', 'payment_method_line_id')
+    def _compute_show_writeoff_section(self):
+        """Show writeoff section when manually enabled OR when there's a payment difference."""
+        for wizard in self:
+            # Show if manually forced
+            if wizard.force_writeoff:
+                wizard.show_writeoff_section = True
+            # Or show based on standard Odoo logic (payment_difference exists)
+            else:
+                wizard.show_writeoff_section = (
+                    wizard.payment_difference != 0.0
+                    and not wizard.early_payment_discount_mode
+                    and wizard.can_edit_wizard
+                    and (not wizard.can_group_payments or wizard.group_payment)
+                    and wizard.payment_method_line_id.payment_account_id
+                )
 
     # -------------------------------------------------------------------------
     # WHT Display Fields (informational only)
