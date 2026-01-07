@@ -58,14 +58,14 @@ class AccountBankStatementLine(models.Model):
         Matching Strategy (in priority order):
         1. EXACT MATCH: Same journal + same date + exact amount + reference match
         2. DATE MATCH: Same journal + same date + exact amount (any reference)
-        3. AMOUNT MATCH: Same journal + exact amount (within 7 day window)
-        4. PARTIAL MATCH: Same journal + can combine multiple items to match amount
+        3. COMBINED MATCH: Same journal + same date + same partner + items sum to amount
         
         Key improvements:
         - Match by journal_id (same bank account) instead of partner
         - Exclude ALL statement lines from matching (prevent self-reconciliation)
         - Use date from account_move table (st_line inherits from account.move)
-        - Support date tolerance for slight date mismatches
+        - **STRICT**: Only match on exact same date (no tolerance)
+        - **COMBINED**: Must be same vendor AND same date
         - Try to combine multiple journal items if single match not found
         - **NEW**: Reference/memo matching to disambiguate same-amount entries
         - **NEW**: Extract invoice numbers from payment_ref for better matching
@@ -243,54 +243,9 @@ class AccountBankStatementLine(models.Model):
             remaining_st_line_ids -= processed_st_line_ids
 
         # =====================================================================
-        # STRATEGY 3: AMOUNT MATCH WITH DATE TOLERANCE (within 7 days)
-        # Same journal + exact amount, but allow small date difference
-        # Prioritize: reference match > closest date > oldest entry
-        # =====================================================================
-        if remaining_st_line_ids:
-            query_amount = SQL("""
-                    SELECT st_line.id AS st_line_id,
-                           ARRAY_AGG(aml.id ORDER BY 
-                               -- Prioritize reference matches
-                               CASE WHEN (
-                                   st_line.payment_ref ILIKE '%%' || aml.move_name || '%%'
-                                   OR st_line.payment_ref ILIKE '%%' || COALESCE(aml.ref, '') || '%%'
-                                   OR COALESCE(aml.ref, '') ILIKE '%%' || st_line.payment_ref || '%%'
-                               ) THEN 0 ELSE 1 END ASC,
-                               -- Then by closest date
-                               ABS(st_move.date - aml.date) ASC,
-                               -- Then by oldest entry (FIFO)
-                               aml.date ASC,
-                               aml.id ASC
-                           ) AS all_aml_ids,
-                           SUM(aml.amount_residual) AS total_residual
-                      FROM account_bank_statement_line st_line
-                      JOIN account_move st_move ON st_line.move_id = st_move.id
-                      JOIN account_move_line aml ON (
-                           st_line.journal_id = aml.journal_id 
-                           AND aml.company_id = st_line.company_id
-                           AND ABS(st_move.date - aml.date) <= 7
-                           AND ABS(st_line.amount) = ABS(aml.balance)
-                      )
-                     WHERE aml.move_id NOT IN %s
-                       AND aml.reconciled = false
-                       AND aml.account_id IN %s
-                       AND aml.statement_line_id IS NULL
-                       AND ((st_line.amount > 0 AND aml.balance > 0) OR (st_line.amount < 0 AND aml.balance < 0))
-                       AND aml.parent_state IN ('draft', 'posted')
-                       AND st_line.id IN %s
-                  GROUP BY st_line.id
-            """, tuple(st_move_ids), tuple(account_ids), tuple(remaining_st_line_ids))
-            
-            self.env.cr.execute(query_amount)
-            processed_st_line_ids.update(
-                self._process_auto_reconcile_matches(self.env.cr.fetchall())
-            )
-            remaining_st_line_ids -= processed_st_line_ids
-
-        # =====================================================================
-        # STRATEGY 4: PARTIAL/COMBINED MATCH (combine items to match total)
-        # Same journal + within 30 days + items that sum to the statement amount
+        # STRATEGY 3: COMBINED MATCH (combine items to match total)
+        # Same journal + SAME DATE + SAME PARTNER + items sum to statement amount
+        # More strict: all combined items must be for same vendor and same date
         # =====================================================================
         if remaining_st_line_ids:
             # For each remaining statement line, try to find combinations
@@ -302,26 +257,26 @@ class AccountBankStatementLine(models.Model):
                 st_move = st_line.move_id
                 target_amount = st_line.amount
                 
-                # Find candidate journal items within 30 days
-                # Include move_name and ref for scoring in Python
+                # Find candidate journal items - SAME DATE only
+                # Group by partner_id to ensure all combined items are same vendor
                 query_candidates = SQL("""
                     SELECT aml.id, aml.balance, aml.amount_residual, aml.date,
-                           aml.move_name, aml.ref
+                           aml.move_name, aml.ref, aml.partner_id
                       FROM account_move_line aml
                      WHERE aml.journal_id = %s
                        AND aml.company_id = %s
-                       AND ABS(%s - aml.date) <= 30
+                       AND aml.date = %s
                        AND aml.move_id NOT IN %s
                        AND aml.reconciled = false
                        AND aml.account_id IN %s
                        AND aml.statement_line_id IS NULL
                        AND (((%s > 0 AND aml.balance > 0) OR (%s < 0 AND aml.balance < 0)))
                        AND aml.parent_state IN ('draft', 'posted')
-                  ORDER BY ABS(%s - aml.date) ASC, ABS(ABS(aml.balance) - ABS(%s)) ASC
-                     LIMIT 15
+                  ORDER BY aml.partner_id, ABS(ABS(aml.balance) - ABS(%s)) ASC
+                     LIMIT 20
                 """, st_line.journal_id.id, st_line.company_id.id, st_move.date,
                      tuple(st_move_ids), tuple(account_ids),
-                     target_amount, target_amount, st_move.date, target_amount)
+                     target_amount, target_amount, target_amount)
                 
                 self.env.cr.execute(query_candidates)
                 candidates = self.env.cr.fetchall()
@@ -331,8 +286,9 @@ class AccountBankStatementLine(models.Model):
                 
                 # Try to find a subset that sums to target_amount
                 # Pass payment_ref for reference-based scoring
+                # Enforce same partner constraint
                 payment_ref = st_line.payment_ref or ''
-                matching_ids = self._find_matching_combination(
+                matching_ids = self._find_matching_combination_same_partner(
                     candidates, target_amount, st_line.currency_id, payment_ref
                 )
                 
@@ -477,3 +433,101 @@ class AccountBankStatementLine(models.Model):
                 return selected
         
         return []
+
+    def _find_matching_combination_same_partner(self, candidates, target_amount, currency, payment_ref=''):
+        """
+        Find a combination of candidate journal items that sum to target_amount.
+        All items in the combination MUST have the same partner_id.
+        
+        Args:
+            candidates: List of tuples (id, balance, amount_residual, date, move_name, ref, partner_id)
+            target_amount: The target amount to match
+            currency: Currency record for rounding comparison
+            payment_ref: Statement line payment reference for matching
+            
+        Returns:
+            List of aml IDs that sum to target_amount (all same partner), or empty list if no match
+        """
+        if not candidates:
+            return []
+        
+        # Group candidates by partner_id
+        from collections import defaultdict
+        by_partner = defaultdict(list)
+        for c in candidates:
+            partner_id = c[6] if len(c) > 6 else None
+            by_partner[partner_id].append(c)
+        
+        # Calculate reference match score
+        def calc_ref_score(move_name, ref):
+            if not payment_ref:
+                return 0
+            score = 0
+            payment_ref_lower = payment_ref.lower()
+            if move_name and move_name.lower() in payment_ref_lower:
+                score += 10
+            if ref and ref.lower() in payment_ref_lower:
+                score += 10
+            invoice_patterns = re.findall(r'\b(INV[/-]?\d+|SI[/-]?\d+|\d{4,})\b', payment_ref, re.IGNORECASE)
+            for pattern in invoice_patterns:
+                if move_name and pattern.lower() in move_name.lower():
+                    score += 5
+                if ref and pattern.lower() in ref.lower():
+                    score += 5
+            return score
+        
+        best_match = None
+        best_score = -1
+        
+        # Try each partner group separately
+        for partner_id, partner_candidates in by_partner.items():
+            # Convert to items list: (id, residual, ref_score)
+            items = []
+            for c in partner_candidates:
+                item_id = c[0]
+                residual = c[2]
+                move_name = c[4] if len(c) > 4 else ''
+                ref = c[5] if len(c) > 5 else ''
+                ref_score = calc_ref_score(move_name, ref)
+                items.append((item_id, residual, ref_score))
+            
+            # Check single item match
+            for item_id, residual, score in items:
+                if currency.is_zero(residual - target_amount):
+                    if score > best_score:
+                        best_match = [item_id]
+                        best_score = score
+            
+            # Try combinations of 2
+            for i, (id1, res1, score1) in enumerate(items):
+                for id2, res2, score2 in items[i+1:]:
+                    if currency.is_zero(res1 + res2 - target_amount):
+                        total_score = score1 + score2
+                        if total_score > best_score:
+                            best_match = [id1, id2]
+                            best_score = total_score
+            
+            # Try combinations of 3
+            if len(items) >= 3:
+                for i, (id1, res1, score1) in enumerate(items):
+                    for j, (id2, res2, score2) in enumerate(items[i+1:], i+1):
+                        for id3, res3, score3 in items[j+1:]:
+                            if currency.is_zero(res1 + res2 + res3 - target_amount):
+                                total_score = score1 + score2 + score3
+                                if total_score > best_score:
+                                    best_match = [id1, id2, id3]
+                                    best_score = total_score
+            
+            # Try combinations of 4
+            if len(items) >= 4:
+                for i, (id1, res1, score1) in enumerate(items):
+                    for j, (id2, res2, score2) in enumerate(items[i+1:], i+1):
+                        for k, (id3, res3, score3) in enumerate(items[j+1:], j+1):
+                            for id4, res4, score4 in items[k+1:]:
+                                if currency.is_zero(res1 + res2 + res3 + res4 - target_amount):
+                                    total_score = score1 + score2 + score3 + score4
+                                    if total_score > best_score:
+                                        best_match = [id1, id2, id3, id4]
+                                        best_score = total_score
+        
+        return best_match or []
