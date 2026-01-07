@@ -43,16 +43,11 @@
                        string="Description"
                        invisible="not apply_charge_deduction"
                        readonly="state != 'draft'"/>
-                <!-- Show summary when charge deduction is applied -->
-                <div colspan="2" 
-                     invisible="not apply_charge_deduction or charge_amount == 0"
-                     class="alert alert-info mt-2 mb-2" role="status">
-                    <strong>Payment Summary:</strong><br/>
-                    <span invisible="not selected_invoice_ids">Invoice Total: <field name="selected_invoices_amount" readonly="1" class="oe_inline" widget="monetary" options="{'currency_field': 'currency_id'}"/><br/></span>
-                    Applied to Invoices: <field name="amount" readonly="1" class="oe_inline" widget="monetary" options="{'currency_field': 'currency_id'}"/><br/>
-                    − Charge Deduction: <field name="charge_amount" readonly="1" class="oe_inline" widget="monetary" options="{'currency_field': 'currency_id'}"/><br/>
-                    <strong>= Received in Bank: <field name="bank_amount" readonly="1" class="oe_inline" widget="monetary" options="{'currency_field': 'currency_id'}"/></strong>
-                </div>
+            </xpath>
+            
+            <!-- Add hint to Amount field explaining it should be bank received amount -->
+            <xpath expr="//field[@name='amount']" position="attributes">
+                <attribute name="help">Enter the amount received in bank. If there are bank charges, they will be added separately to determine the total applied to invoices.</attribute>
             </xpath>
             
             <!-- Invoice selector for DRAFT payments -->
