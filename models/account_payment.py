@@ -204,48 +204,64 @@ class AccountPayment(models.Model):
         OUTBOUND (Vendor Payment):
         - Amount = 1000 (bill amount), Adjustment = 100, Bank pays = 1100
         - Journal: Payable 1000 Dr, Expense 100 Dr, Bank 1100 Cr
+        
+        NOTE: Odoo's base implementation ignores force_balance when write_off_line_vals is provided.
+        So for inbound, we use write_off which naturally reduces counterpart.
+        For outbound, we use force_balance (no write_off passed to super) and add adjustment line after.
         """
-        # Handle adjustment for both inbound and outbound payments
-        if self.apply_charge_deduction and self.charge_amount > 0 and self.charge_account_id:
-            # Convert amounts to company currency
-            adjustment_balance = self.currency_id._convert(
-                self.charge_amount,
-                self.company_id.currency_id,
-                self.company_id,
-                self.date,
+        if not (self.apply_charge_deduction and self.charge_amount > 0 and self.charge_account_id):
+            # No adjustment - use standard behavior
+            return super()._prepare_move_line_default_vals(
+                write_off_line_vals=write_off_line_vals, 
+                force_balance=force_balance
             )
-            bank_balance = self.currency_id._convert(
-                self.bank_amount,
-                self.company_id.currency_id,
-                self.company_id,
-                self.date,
-            )
-            
-            # Set force_balance based on payment type
-            if self.payment_type == 'inbound':
-                # Inbound: bank receives less (900), counterpart is full amount (1000)
-                force_balance = bank_balance  # +900 (debit bank)
-            else:
-                # Outbound: bank pays more (1100), counterpart is bill amount (1000)
-                force_balance = -bank_balance  # -1100 (credit bank)
-            
-            # Adjustment line: always debit expense
-            adjustment_line = {
-                'name': self.charge_label or 'Bank Charges',
-                'account_id': self.charge_account_id.id,
-                'partner_id': self.partner_id.id if self.partner_id else False,
-                'currency_id': self.currency_id.id,
-                'amount_currency': self.charge_amount,
-                'balance': adjustment_balance,
-            }
+        
+        # Convert amounts to company currency
+        adjustment_balance = self.currency_id._convert(
+            self.charge_amount,
+            self.company_id.currency_id,
+            self.company_id,
+            self.date,
+        )
+        bank_balance = self.currency_id._convert(
+            self.bank_amount,
+            self.company_id.currency_id,
+            self.company_id,
+            self.date,
+        )
+        
+        # Create adjustment line (always debit expense)
+        adjustment_line = {
+            'name': self.charge_label or 'Bank Charges',
+            'account_id': self.charge_account_id.id,
+            'partner_id': self.partner_id.id if self.partner_id else False,
+            'currency_id': self.currency_id.id,
+            'amount_currency': self.charge_amount,
+            'balance': adjustment_balance,
+        }
+        
+        if self.payment_type == 'inbound':
+            # INBOUND: Use write_off approach - adjustment reduces counterpart (receivable)
+            # bank_amount = 900, counterpart = -bank - writeoff = -900 - 100 = -1000 (credit receivable)
+            force_balance = bank_balance  # +900 (debit bank)
             if write_off_line_vals is None:
                 write_off_line_vals = []
             write_off_line_vals = list(write_off_line_vals) + [adjustment_line]
-        
-        return super()._prepare_move_line_default_vals(
-            write_off_line_vals=write_off_line_vals, 
-            force_balance=force_balance
-        )
+            return super()._prepare_move_line_default_vals(
+                write_off_line_vals=write_off_line_vals, 
+                force_balance=force_balance
+            )
+        else:
+            # OUTBOUND: Use force_balance WITHOUT write_off to get correct counterpart
+            # force_balance = -1100 (credit bank), counterpart = -(-1100) = +1000 (debit payable)
+            # Then add adjustment line manually after super call
+            force_balance = -bank_balance  # -1100 (credit bank)
+            line_vals_list = super()._prepare_move_line_default_vals(
+                write_off_line_vals=write_off_line_vals,  # Pass through any existing write-offs, not our adjustment
+                force_balance=force_balance
+            )
+            # Add adjustment line for outbound
+            return line_vals_list + [adjustment_line]
 
     @api.model
     def _get_trigger_fields_to_synchronize(self):
