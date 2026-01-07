@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Account Payment Extension for Invoice Selection
+Account Payment Extension
 
-Extends the account.payment model to allow selecting unpaid invoices
-when creating a direct customer payment. This enables:
-- Linking payments to multiple unpaid invoices
-- Partial payments across invoices
-- Better tracking of which invoices a payment covers
+Extends the account.payment model with:
+1. Invoice selector - select unpaid invoices when creating direct payments
+2. Charge deduction - deduct bank charges and fees from payments
 """
 
 from odoo import models, fields, api, _
@@ -18,7 +16,7 @@ _logger = logging.getLogger(__name__)
 
 class AccountPayment(models.Model):
     """
-    Extend account.payment to allow selecting invoices when creating payment directly.
+    Extend account.payment for invoice selection and charge deduction.
     """
     _inherit = 'account.payment'
 
@@ -54,6 +52,43 @@ class AccountPayment(models.Model):
         help="Technical field to control visibility"
     )
 
+    # -------------------------------------------------------------------------
+    # Charge Deduction Fields
+    # -------------------------------------------------------------------------
+    
+    apply_charge_deduction = fields.Boolean(
+        string="Deduct Charges",
+        default=False,
+        help="Enable to deduct bank charges or fees from this payment"
+    )
+    
+    charge_amount = fields.Monetary(
+        string="Charge Amount",
+        currency_field='currency_id',
+        default=0.0,
+        help="Amount to deduct (e.g., bank transfer fee)"
+    )
+    
+    charge_account_id = fields.Many2one(
+        comodel_name='account.account',
+        string="Charge Account",
+        domain="[('account_type', 'in', ['expense', 'expense_direct_cost']), ('company_id', '=', company_id)]",
+        help="Expense account for the charge (e.g., Bank Charges)"
+    )
+    
+    charge_label = fields.Char(
+        string="Charge Description",
+        default="Bank Charges",
+        help="Description for the charge journal entry line"
+    )
+    
+    net_amount = fields.Monetary(
+        string="Net Amount Received",
+        compute='_compute_net_amount',
+        currency_field='currency_id',
+        help="Amount after deducting charges"
+    )
+
     @api.depends('payment_type', 'partner_type', 'state')
     def _compute_show_invoice_selector(self):
         """Show invoice selector for customer inbound payments in draft state."""
@@ -70,6 +105,15 @@ class AccountPayment(models.Model):
         for payment in self:
             total = sum(payment.selected_invoice_ids.mapped('amount_residual'))
             payment.selected_invoices_amount = total
+
+    @api.depends('amount', 'apply_charge_deduction', 'charge_amount')
+    def _compute_net_amount(self):
+        """Compute net amount after charge deduction."""
+        for payment in self:
+            if payment.apply_charge_deduction and payment.charge_amount > 0:
+                payment.net_amount = payment.amount - payment.charge_amount
+            else:
+                payment.net_amount = payment.amount
 
     @api.onchange('selected_invoice_ids')
     def _onchange_selected_invoice_ids(self):
@@ -88,6 +132,24 @@ class AccountPayment(models.Model):
             # Check if any selected invoices don't match new partner
             if self.partner_id and any(inv.partner_id != self.partner_id for inv in self.selected_invoice_ids):
                 self.selected_invoice_ids = [(5, 0, 0)]  # Clear all
+
+    def _prepare_move_line_default_vals(self, write_off_line_vals=None):
+        """Override to add charge deduction line if applicable."""
+        # Add charge line to write_off_line_vals if charge deduction is enabled
+        if self.apply_charge_deduction and self.charge_amount > 0 and self.charge_account_id:
+            charge_line = {
+                'name': self.charge_label or 'Bank Charges',
+                'account_id': self.charge_account_id.id,
+                'partner_id': self.partner_id.id if self.partner_id else False,
+                'currency_id': self.currency_id.id,
+                'amount_currency': self.charge_amount if self.payment_type == 'inbound' else -self.charge_amount,
+                'balance': self.charge_amount if self.payment_type == 'inbound' else -self.charge_amount,
+            }
+            if write_off_line_vals is None:
+                write_off_line_vals = []
+            write_off_line_vals = list(write_off_line_vals) + [charge_line]
+        
+        return super()._prepare_move_line_default_vals(write_off_line_vals=write_off_line_vals)
 
     def action_post(self):
         """Override to link selected invoices and trigger reconciliation."""
