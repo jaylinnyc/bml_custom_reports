@@ -4,8 +4,9 @@
     Account Payment View Extension
     
     Features:
-    1. Invoice selector - select unpaid invoices for customer payments
-    2. Charge deduction - deduct bank charges/fees from payments
+    1. Invoice selector - select unpaid invoices for customer payments (draft)
+    2. Link invoices - link invoices to existing confirmed payments (advance payments)
+    3. Charge deduction - deduct bank charges/fees from payments
     -->
 
     <record id="view_account_payment_form_invoice_selector" model="ir.ui.view">
@@ -15,9 +16,10 @@
         <field name="priority">20</field>
         <field name="arch" type="xml">
             
-            <!-- Add technical field -->
+            <!-- Add technical fields -->
             <xpath expr="//field[@name='partner_type']" position="after">
                 <field name="show_invoice_selector" invisible="1"/>
+                <field name="can_link_invoices" invisible="1"/>
             </xpath>
             
             <!-- Add charge deduction section in group2 -->
@@ -47,11 +49,11 @@
                        readonly="1"/>
             </xpath>
             
-            <!-- Add invoice selector section after main group -->
+            <!-- Invoice selector for DRAFT payments -->
             <xpath expr="//group[@name='main_group']" position="after">
                 <group string="Link to Invoices" 
                        name="invoice_selector_group"
-                       invisible="not show_invoice_selector"
+                       invisible="not show_invoice_selector or state != 'draft'"
                        col="4">
                     
                     <group colspan="4">
@@ -63,8 +65,7 @@
                                        ('state', '=', 'posted'), 
                                        ('payment_state', 'in', ['not_paid', 'partial']), 
                                        ('partner_id', '=', partner_id)]"
-                               context="{'default_partner_id': partner_id}"
-                               readonly="state != 'draft'"/>
+                               context="{'default_partner_id': partner_id}"/>
                     </group>
                     
                     <group colspan="2">
@@ -91,7 +92,66 @@
                             </list>
                         </field>
                     </group>
+                </group>
+                
+                <!-- Link Invoices section for CONFIRMED payments (advance payments) -->
+                <group string="Link Invoices to Payment" 
+                       name="link_invoices_group"
+                       invisible="not can_link_invoices"
+                       col="4">
                     
+                    <div colspan="4" class="alert alert-info mb-3">
+                        <strong>Advance Payment:</strong> This payment has 
+                        <field name="unreconciled_amount" class="oe_inline" readonly="1"/> 
+                        unreconciled. Select invoices below to link and reconcile.
+                    </div>
+                    
+                    <group colspan="4">
+                        <field name="selected_invoice_ids" 
+                               widget="many2many_tags"
+                               placeholder="Select invoices to link..."
+                               options="{'no_create': True, 'color_field': 'payment_state'}"
+                               domain="[('move_type', 'in', ['out_invoice', 'out_refund']), 
+                                       ('state', '=', 'posted'), 
+                                       ('payment_state', 'in', ['not_paid', 'partial']), 
+                                       ('partner_id', '=', partner_id)]"
+                               context="{'default_partner_id': partner_id}"/>
+                    </group>
+                    
+                    <group colspan="2">
+                        <field name="selected_invoices_amount" 
+                               string="Selected Invoices Total"
+                               readonly="1"
+                               invisible="not selected_invoice_ids"/>
+                    </group>
+                    
+                    <!-- Detailed invoice list view -->
+                    <group colspan="4" invisible="not selected_invoice_ids">
+                        <field name="selected_invoice_ids" nolabel="1" colspan="4">
+                            <list create="false" delete="true" editable="bottom">
+                                <field name="name" string="Invoice" readonly="1"/>
+                                <field name="invoice_date" string="Date" readonly="1"/>
+                                <field name="amount_total" string="Total" readonly="1"/>
+                                <field name="amount_residual" string="Amount Due" readonly="1"/>
+                                <field name="payment_state" string="Status" 
+                                       widget="badge"
+                                       decoration-warning="payment_state == 'partial'"
+                                       decoration-danger="payment_state == 'not_paid'"
+                                       readonly="1"/>
+                                <field name="currency_id" column_invisible="True"/>
+                            </list>
+                        </field>
+                    </group>
+                    
+                    <!-- Link button -->
+                    <group colspan="4">
+                        <button name="action_link_invoices" 
+                                string="Link &amp; Reconcile Selected Invoices"
+                                type="object"
+                                class="btn-primary"
+                                invisible="not selected_invoice_ids"
+                                confirm="This will reconcile the selected invoices with this payment. Continue?"/>
+                    </group>
                 </group>
             </xpath>
             

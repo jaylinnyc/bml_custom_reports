@@ -5,6 +5,7 @@ Account Payment Extension
 Extends the account.payment model with:
 1. Invoice selector - select unpaid invoices when creating direct payments
 2. Charge deduction - deduct bank charges and fees from payments
+3. Link invoices to existing confirmed payments (for advance payments)
 """
 
 from odoo import models, fields, api, _
@@ -51,6 +52,19 @@ class AccountPayment(models.Model):
         compute='_compute_show_invoice_selector',
         help="Technical field to control visibility"
     )
+    
+    can_link_invoices = fields.Boolean(
+        string="Can Link Invoices",
+        compute='_compute_can_link_invoices',
+        help="Whether this payment can be linked to invoices (has unreconciled balance)"
+    )
+    
+    unreconciled_amount = fields.Monetary(
+        string="Unreconciled Amount",
+        compute='_compute_unreconciled_amount',
+        currency_field='currency_id',
+        help="Amount not yet reconciled with invoices"
+    )
 
     # -------------------------------------------------------------------------
     # Charge Deduction Fields
@@ -90,15 +104,46 @@ class AccountPayment(models.Model):
         help="Amount after deducting charges"
     )
 
-    @api.depends('payment_type', 'partner_type', 'state')
+    @api.depends('payment_type', 'partner_type', 'state', 'is_reconciled')
     def _compute_show_invoice_selector(self):
-        """Show invoice selector for customer inbound payments in draft state."""
+        """Show invoice selector for customer inbound payments."""
         for payment in self:
+            # Show for draft payments OR confirmed payments that can still be linked
             payment.show_invoice_selector = (
                 payment.payment_type == 'inbound'
                 and payment.partner_type == 'customer'
-                and payment.state == 'draft'
+                and payment.state in ('draft', 'in_process')
             )
+
+    @api.depends('payment_type', 'partner_type', 'state', 'move_id.line_ids.amount_residual')
+    def _compute_can_link_invoices(self):
+        """Check if payment has unreconciled balance that can be linked to invoices."""
+        for payment in self:
+            can_link = False
+            if (payment.payment_type == 'inbound' 
+                and payment.partner_type == 'customer'
+                and payment.state == 'in_process'
+                and payment.move_id):
+                # Check if there's unreconciled receivable balance
+                receivable_lines = payment.move_id.line_ids.filtered(
+                    lambda l: l.account_id.account_type == 'asset_receivable'
+                    and not l.reconciled
+                )
+                can_link = bool(receivable_lines and any(l.amount_residual != 0 for l in receivable_lines))
+            payment.can_link_invoices = can_link
+
+    @api.depends('move_id.line_ids.amount_residual')
+    def _compute_unreconciled_amount(self):
+        """Compute unreconciled amount from payment's receivable lines."""
+        for payment in self:
+            unreconciled = 0.0
+            if payment.move_id:
+                receivable_lines = payment.move_id.line_ids.filtered(
+                    lambda l: l.account_id.account_type == 'asset_receivable'
+                )
+                # For inbound payments, the receivable line has negative balance (credit)
+                unreconciled = abs(sum(receivable_lines.mapped('amount_residual')))
+            payment.unreconciled_amount = unreconciled
 
     @api.depends('selected_invoice_ids', 'selected_invoice_ids.amount_residual')
     def _compute_selected_invoices_amount(self):
@@ -213,3 +258,42 @@ class AccountPayment(models.Model):
         except Exception as e:
             _logger.warning(f"Payment {self.name}: Auto-reconciliation failed - {str(e)}")
             # Don't raise error - user can manually reconcile
+
+    def action_link_invoices(self):
+        """
+        Action button to link and reconcile selected invoices with this payment.
+        Used for linking invoices to advance payments after confirmation.
+        """
+        self.ensure_one()
+        
+        if not self.selected_invoice_ids:
+            raise UserError(_("Please select at least one invoice to link."))
+        
+        if self.state != 'in_process':
+            raise UserError(_("Can only link invoices to payments in 'In Process' state."))
+        
+        if not self.can_link_invoices:
+            raise UserError(_("This payment has no unreconciled balance to link with invoices."))
+        
+        # Link invoices to payment
+        existing_invoice_ids = set(self.invoice_ids.ids)
+        new_invoice_ids = set(self.selected_invoice_ids.ids)
+        all_invoice_ids = existing_invoice_ids | new_invoice_ids
+        self.invoice_ids = [(6, 0, list(all_invoice_ids))]
+        
+        # Perform reconciliation
+        self._reconcile_with_selected_invoices()
+        
+        # Clear selection after linking
+        self.selected_invoice_ids = [(5, 0, 0)]
+        
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _("Invoices Linked"),
+                'message': _("Selected invoices have been linked and reconciled with this payment."),
+                'type': 'success',
+                'sticky': False,
+            }
+        }
