@@ -43,10 +43,15 @@
                        string="Description"
                        invisible="not apply_charge_deduction"
                        readonly="state != 'draft'"/>
-                <field name="net_amount"
-                       string="Net Amount"
-                       invisible="not apply_charge_deduction or charge_amount == 0"
-                       readonly="1"/>
+                <!-- Show summary when charge deduction is applied -->
+                <div colspan="2" 
+                     invisible="not apply_charge_deduction or charge_amount == 0"
+                     class="alert alert-info mt-2 mb-2" role="status">
+                    <strong>Summary:</strong><br/>
+                    Payment Received: <field name="amount" readonly="1" class="oe_inline" widget="monetary" options="{'currency_field': 'currency_id'}"/><br/>
+                    + Charge Deduction: <field name="charge_amount" readonly="1" class="oe_inline" widget="monetary" options="{'currency_field': 'currency_id'}"/><br/>
+                    <strong>= Total Applied to Invoices: <field name="gross_amount" readonly="1" class="oe_inline" widget="monetary" options="{'currency_field': 'currency_id'}"/></strong>
+                </div>
             </xpath>
             
             <!-- Invoice selector for DRAFT payments -->

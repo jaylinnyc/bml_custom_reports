@@ -97,11 +97,11 @@ class AccountPayment(models.Model):
         help="Description for the charge journal entry line"
     )
     
-    net_amount = fields.Monetary(
-        string="Net Amount Received",
-        compute='_compute_net_amount',
+    gross_amount = fields.Monetary(
+        string="Total Applied to Invoices",
+        compute='_compute_gross_amount',
         currency_field='currency_id',
-        help="Amount after deducting charges"
+        help="Total amount to be applied towards invoices (Payment Amount + Charge Deduction)"
     )
 
     @api.depends('payment_type', 'partner_type', 'state', 'is_reconciled')
@@ -153,13 +153,13 @@ class AccountPayment(models.Model):
             payment.selected_invoices_amount = total
 
     @api.depends('amount', 'apply_charge_deduction', 'charge_amount')
-    def _compute_net_amount(self):
-        """Compute net amount after charge deduction."""
+    def _compute_gross_amount(self):
+        """Compute gross amount to be applied to invoices (payment + charge)."""
         for payment in self:
             if payment.apply_charge_deduction and payment.charge_amount > 0:
-                payment.net_amount = payment.amount - payment.charge_amount
+                payment.gross_amount = payment.amount + payment.charge_amount
             else:
-                payment.net_amount = payment.amount
+                payment.gross_amount = payment.amount
 
     @api.onchange('selected_invoice_ids')
     def _onchange_selected_invoice_ids(self):
@@ -180,7 +180,25 @@ class AccountPayment(models.Model):
                 self.selected_invoice_ids = [(5, 0, 0)]  # Clear all
 
     def _prepare_move_line_default_vals(self, write_off_line_vals=None, force_balance=None):
-        """Override to add charge deduction line if applicable."""
+        """Override to add charge deduction line if applicable.
+        
+        Bank Charge Scenario (inbound payment):
+        - Customer pays 1000 for invoice
+        - Bank deducts 100 as transfer fee
+        - We receive 900 net
+        
+        Journal Entry should be:
+        Debit:  Bank (Outstanding)      900   (net received)
+        Debit:  Bank Charges (Expense)  100   (the fee)
+        Credit: Accounts Receivable    1000   (customer's payment)
+        
+        To achieve this with Odoo's write-off mechanism:
+        - The write-off amount_currency should be NEGATIVE (to reduce counterpart credit)
+        - But balance should be POSITIVE (to create debit on expense account)
+        
+        Actually, Odoo's mechanism adds write-off to counterpart, so we need different approach.
+        We add charge as write-off which increases the counterpart (receivable) credit.
+        """
         # Add charge line to write_off_line_vals if charge deduction is enabled
         if self.apply_charge_deduction and self.charge_amount > 0 and self.charge_account_id:
             # Convert charge amount to company currency for balance
@@ -190,6 +208,25 @@ class AccountPayment(models.Model):
                 self.company_id,
                 self.date,
             )
+            
+            # Bank Charge Scenario (inbound payment):
+            # - User enters Payment Amount = 900 (what was received in bank)
+            # - Charge Amount = 100 (bank fee)
+            # - Gross Amount = 1000 (total to apply to invoices)
+            #
+            # Desired Journal Entry:
+            # Debit:  Bank (Outstanding)      900   (payment amount - received)
+            # Debit:  Bank Charges (Expense)  100   (charge)
+            # Credit: Accounts Receivable    1000   (gross - applied to invoices)
+            #
+            # Odoo's formula: counterpart = -liquidity - write_off_amount_currency
+            # With liquidity = 900, to get counterpart = -1000:
+            # -1000 = -900 - write_off_amount_currency
+            # write_off_amount_currency = 100 (POSITIVE)
+            #
+            # For inbound payment: use positive amount_currency to INCREASE receivable credit
+            # For outbound payment: use negative amount_currency
+            
             charge_line = {
                 'name': self.charge_label or 'Bank Charges',
                 'account_id': self.charge_account_id.id,
