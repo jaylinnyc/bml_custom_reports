@@ -47,7 +47,7 @@
             
             <!-- Add hint to Amount field explaining it should be bank received amount -->
             <xpath expr="//field[@name='amount']" position="attributes">
-                <attribute name="help">Enter the amount received in bank. If there are bank charges, they will be added separately to determine the total applied to invoices.</attribute>
+                <attribute name="help">For inbound payments: enter amount received in bank (customer paid amount minus charges). For outbound payments: enter amount applied to bills (vendor bill amount, charges paid separately).</attribute>
             </xpath>
             
             <!-- Invoice selector for DRAFT payments -->
@@ -60,12 +60,8 @@
                     <group colspan="4">
                         <field name="selected_invoice_ids" 
                                widget="many2many_tags"
-                               placeholder="Select unpaid invoices..."
+                               placeholder="Select unpaid invoices/bills..."
                                options="{'no_create': True, 'color_field': 'payment_state'}"
-                               domain="[('move_type', 'in', ['out_invoice', 'out_refund']), 
-                                       ('state', '=', 'posted'), 
-                                       ('payment_state', 'in', ['not_paid', 'partial']), 
-                                       ('partner_id', '=', partner_id)]"
                                context="{'default_partner_id': partner_id}"/>
                     </group>
                     
@@ -112,12 +108,8 @@
                     <group colspan="4">
                         <field name="selected_invoice_ids" 
                                widget="many2many_tags"
-                               placeholder="Select invoices to link..."
+                               placeholder="Select invoices/bills to link..."
                                options="{'no_create': True, 'color_field': 'payment_state'}"
-                               domain="[('move_type', 'in', ['out_invoice', 'out_refund']), 
-                                       ('state', '=', 'posted'), 
-                                       ('payment_state', 'in', ['not_paid', 'partial']), 
-                                       ('partner_id', '=', partner_id)]"
                                context="{'default_partner_id': partner_id}"/>
                     </group>
                     

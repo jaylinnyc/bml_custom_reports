@@ -31,7 +31,7 @@ class AccountPayment(models.Model):
         column1='payment_id',
         column2='move_id',
         string="Invoices to Pay",
-        domain="[('move_type', 'in', ['out_invoice', 'out_refund']), "
+        domain="[('move_type', 'in', ['out_invoice', 'out_refund', 'in_invoice', 'in_refund']), "
                "('state', '=', 'posted'), "
                "('payment_state', 'in', ['not_paid', 'partial']), "
                "('partner_id', '=', partner_id)]",
@@ -98,20 +98,20 @@ class AccountPayment(models.Model):
     )
     
     bank_amount = fields.Monetary(
-        string="Amount Received in Bank",
+        string="Bank Amount",
         compute='_compute_bank_amount',
         currency_field='currency_id',
-        help="Actual amount received in bank after charge deduction (Payment Amount - Charge)"
+        help="Actual bank amount: for inbound payments (amount - charge), for outbound payments (amount + charge)"
     )
 
     @api.depends('payment_type', 'partner_type', 'state', 'is_reconciled')
     def _compute_show_invoice_selector(self):
-        """Show invoice selector for customer inbound payments."""
+        """Show invoice selector for customer inbound payments and vendor outbound payments."""
         for payment in self:
             # Show for draft payments OR confirmed payments that can still be linked
             payment.show_invoice_selector = (
-                payment.payment_type == 'inbound'
-                and payment.partner_type == 'customer'
+                ((payment.payment_type == 'inbound' and payment.partner_type == 'customer') or
+                 (payment.payment_type == 'outbound' and payment.partner_type == 'vendor'))
                 and payment.state in ('draft', 'in_process')
             )
 
@@ -120,29 +120,32 @@ class AccountPayment(models.Model):
         """Check if payment has unreconciled balance that can be linked to invoices."""
         for payment in self:
             can_link = False
-            if (payment.payment_type == 'inbound' 
-                and payment.partner_type == 'customer'
+            if (((payment.payment_type == 'inbound' and payment.partner_type == 'customer') or
+                 (payment.payment_type == 'outbound' and payment.partner_type == 'vendor'))
                 and payment.state == 'in_process'
                 and payment.move_id):
-                # Check if there's unreconciled receivable balance
-                receivable_lines = payment.move_id.line_ids.filtered(
-                    lambda l: l.account_id.account_type == 'asset_receivable'
+                # Check if there's unreconciled balance
+                account_type = 'asset_receivable' if payment.partner_type == 'customer' else 'liability_payable'
+                target_lines = payment.move_id.line_ids.filtered(
+                    lambda l: l.account_id.account_type == account_type
                     and not l.reconciled
                 )
-                can_link = bool(receivable_lines and any(l.amount_residual != 0 for l in receivable_lines))
+                can_link = bool(target_lines and any(l.amount_residual != 0 for l in target_lines))
             payment.can_link_invoices = can_link
 
-    @api.depends('move_id.line_ids.amount_residual')
+    @api.depends('move_id.line_ids.amount_residual', 'partner_type')
     def _compute_unreconciled_amount(self):
-        """Compute unreconciled amount from payment's receivable lines."""
+        """Compute unreconciled amount from payment's receivable/payable lines."""
         for payment in self:
             unreconciled = 0.0
             if payment.move_id:
-                receivable_lines = payment.move_id.line_ids.filtered(
-                    lambda l: l.account_id.account_type == 'asset_receivable'
+                account_type = 'asset_receivable' if payment.partner_type == 'customer' else 'liability_payable'
+                target_lines = payment.move_id.line_ids.filtered(
+                    lambda l: l.account_id.account_type == account_type
                 )
-                # For inbound payments, the receivable line has negative balance (credit)
-                unreconciled = abs(sum(receivable_lines.mapped('amount_residual')))
+                # For inbound/customer: receivable line has negative balance (credit)
+                # For outbound/vendor: payable line has positive balance (debit)
+                unreconciled = abs(sum(target_lines.mapped('amount_residual')))
             payment.unreconciled_amount = unreconciled
 
     @api.depends('selected_invoice_ids', 'selected_invoice_ids.amount_residual')
@@ -152,12 +155,22 @@ class AccountPayment(models.Model):
             total = sum(payment.selected_invoice_ids.mapped('amount_residual'))
             payment.selected_invoices_amount = total
 
-    @api.depends('amount', 'apply_charge_deduction', 'charge_amount')
+    @api.depends('amount', 'apply_charge_deduction', 'charge_amount', 'payment_type')
     def _compute_bank_amount(self):
-        """Compute amount received in bank (payment amount - charge)."""
+        """Compute bank amount based on payment type.
+        
+        Inbound (customer payment): bank_amount = amount - charge
+        - Customer pays 1000, bank charges 100, we receive 900
+        
+        Outbound (vendor payment): bank_amount = amount + charge  
+        - We pay vendor 1000, bank charges 100, total paid out is 1100
+        """
         for payment in self:
             if payment.apply_charge_deduction and payment.charge_amount > 0:
-                payment.bank_amount = payment.amount - payment.charge_amount
+                if payment.payment_type == 'inbound':
+                    payment.bank_amount = payment.amount - payment.charge_amount
+                else:  # outbound
+                    payment.bank_amount = payment.amount + payment.charge_amount
             else:
                 payment.bank_amount = payment.amount
 
@@ -219,38 +232,56 @@ class AccountPayment(models.Model):
                 self.date,
             )
             
-            # Bank Charge Scenario (inbound payment):
+            # Bank Charge Scenarios:
+            # 
+            # INBOUND (Customer Payment):
             # - Payment Amount = 1000 (what customer paid / applied to invoice)
             # - Charge Amount = 100 (bank fee - our expense)
             # - Bank Amount = 900 (net received in bank)
-            #
             # Desired Journal Entry:
             # Debit:  Bank (Outstanding)      900   (net received)
-            # Debit:  Bank Charges (Expense)  100   (our expense)
+            # Debit:  Bank Charges (Expense)  100   (our expense - always debit)
             # Credit: Accounts Receivable    1000   (full customer payment)
+            #
+            # OUTBOUND (Vendor Payment):
+            # - Payment Amount = 1000 (what we owe vendor / applied to bill)
+            # - Charge Amount = 100 (bank fee - our expense)
+            # - Bank Amount = 1100 (total paid out including charge)
+            # Desired Journal Entry:
+            # Debit:  Accounts Payable       1000   (full vendor bill amount)
+            # Debit:  Bank Charges (Expense)  100   (our expense - always debit)
+            # Credit: Bank                   1100   (total paid out)
             #
             # Odoo's formula: counterpart_balance = -liquidity_balance - sum(write_off_balances)
             #
-            # With force_balance = 900 (bank line):
+            # For INBOUND with force_balance = 900:
             # - Liquidity balance = +900 (debit bank)
             # - Write-off balance = +100 (debit expense)  
             # - Counterpart = -900 - 100 = -1000 (credit receivable 1000) ✓
+            #
+            # For OUTBOUND with force_balance = -1100:
+            # - Liquidity balance = -1100 (credit bank)
+            # - Write-off balance = +100 (debit expense)
+            # - Counterpart = -(-1100) - 100 = +1100 - 100 = +1000 (debit payable 1000) ✓
             
-            # Set force_balance to bank_amount (reduces bank from 1000 to 900)
+            # Set force_balance to bank_amount
             if self.payment_type == 'inbound':
-                force_balance = bank_balance  # +900
+                force_balance = bank_balance  # +900 (debit bank)
             else:
-                force_balance = -bank_balance
+                # Outbound: bank_amount is already the total (payment + charge)
+                # e.g., 1000 + 100 = 1100, needs to be negative (credit)
+                force_balance = -bank_balance  # -1100 (credit bank)
             
-            # Charge line: POSITIVE balance creates DEBIT on expense account
-            # POSITIVE amount_currency ADDS to counterpart credit
+            # Charge line: ALWAYS positive balance (debit expense)
+            # For inbound: positive amount_currency adds to counterpart credit
+            # For outbound: positive amount_currency reduces counterpart debit
             charge_line = {
                 'name': self.charge_label or 'Bank Charges',
                 'account_id': self.charge_account_id.id,
                 'partner_id': self.partner_id.id if self.partner_id else False,
                 'currency_id': self.currency_id.id,
-                'amount_currency': self.charge_amount if self.payment_type == 'inbound' else -self.charge_amount,
-                'balance': charge_balance if self.payment_type == 'inbound' else -charge_balance,
+                'amount_currency': self.charge_amount,  # Always positive
+                'balance': charge_balance,  # Always positive (debit expense)
             }
             if write_off_line_vals is None:
                 write_off_line_vals = []
@@ -281,19 +312,20 @@ class AccountPayment(models.Model):
         if not self.selected_invoice_ids:
             return
         
-        # Get payment's receivable line
+        # Get payment's receivable/payable line
+        account_type = 'asset_receivable' if self.partner_type == 'customer' else 'liability_payable'
         payment_lines = self.move_id.line_ids.filtered(
-            lambda l: l.account_id.account_type == 'asset_receivable'
+            lambda l: l.account_id.account_type == account_type
             and l.partner_id == self.partner_id
         )
         
         if not payment_lines:
-            _logger.warning(f"Payment {self.name}: No receivable lines found for reconciliation")
+            _logger.warning(f"Payment {self.name}: No {account_type} lines found for reconciliation")
             return
         
-        # Get invoice receivable lines
+        # Get invoice receivable/payable lines
         invoice_lines = self.selected_invoice_ids.line_ids.filtered(
-            lambda l: l.account_id.account_type == 'asset_receivable'
+            lambda l: l.account_id.account_type == account_type
             and l.partner_id == self.partner_id
             and not l.reconciled
             and l.amount_residual != 0

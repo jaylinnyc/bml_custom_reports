@@ -19,8 +19,8 @@ class AccountMoveLine(models.Model):
         'preferred_aml_value' in context), modify the domain to:
         1. Filter by same journal (extracted from statement line in domain)
         2. Exclude ALL bank statement lines (statement_line_id = False)
-        3. Filter by date range: bank statement date range ± 7 days
-           (e.g., if statement covers Dec 1-31, show Nov 24 to Jan 7)
+        3. Filter by date range: bank statement date range ± 7 days based on JOURNAL ENTRY date
+           (e.g., if statement covers Dec 1-31, show entries from Nov 24 to Jan 7)
         """
         # Check if we're in bank reconciliation context
         if self.env.context.get('preferred_aml_value') is not None:
@@ -48,7 +48,7 @@ class AccountMoveLine(models.Model):
                     domain = domain + [('statement_line_id', '=', False)]
                     
                     # Add date range filter based on BANK STATEMENT date range ± 7 days
-                    # Get the statement's date range (earliest and latest statement line dates)
+                    # Filter by JOURNAL ENTRY date (move_id.date) not journal item date
                     statement = st_line.statement_id
                     if statement:
                         # Get min and max dates from all statement lines
@@ -63,16 +63,16 @@ class AccountMoveLine(models.Model):
                             date_to = max_date + timedelta(days=7)
                             
                             domain = domain + [
-                                ('date', '>=', fields.Date.to_string(date_from)),
-                                ('date', '<=', fields.Date.to_string(date_to)),
+                                ('move_id.date', '>=', fields.Date.to_string(date_from)),
+                                ('move_id.date', '<=', fields.Date.to_string(date_to)),
                             ]
                     elif st_line.date:
                         # Fallback: if no statement, use statement line date ± 7 days
                         date_from = st_line.date - timedelta(days=7)
                         date_to = st_line.date + timedelta(days=7)
                         domain = domain + [
-                            ('date', '>=', fields.Date.to_string(date_from)),
-                            ('date', '<=', fields.Date.to_string(date_to)),
+                            ('move_id.date', '>=', fields.Date.to_string(date_from)),
+                            ('move_id.date', '<=', fields.Date.to_string(date_to)),
                         ]
         
         return super().web_search_read(domain=domain, specification=specification, offset=offset, limit=limit, order=order, count_limit=count_limit)
