@@ -164,15 +164,15 @@ class AccountPayment(models.Model):
         Inbound (customer payment): bank_amount = amount - adjustment
         - Customer pays 1000, bank charges 100, we receive 900
         
-        Outbound (vendor payment): bank_amount = amount + adjustment  
-        - We pay vendor 1000, bank charges 100, total paid out is 1100
+        Outbound (vendor payment): bank_amount = amount (no change)
+        - Vendor payments don't use adjustment in journal entry
+        - Bank charges for vendor payments are recorded separately
         """
         for payment in self:
-            if payment.apply_charge_deduction and payment.charge_amount > 0:
-                if payment.payment_type == 'inbound':
-                    payment.bank_amount = payment.amount - payment.charge_amount
-                else:  # outbound
-                    payment.bank_amount = payment.amount + payment.charge_amount
+            if (payment.apply_charge_deduction and payment.charge_amount > 0 
+                and payment.payment_type == 'inbound'):
+                # Only adjust bank amount for inbound (customer) payments
+                payment.bank_amount = payment.amount - payment.charge_amount
             else:
                 payment.bank_amount = payment.amount
 
@@ -218,8 +218,10 @@ class AccountPayment(models.Model):
         The solution: Use force_balance to reduce bank to 900, and write-off with
         POSITIVE amount_currency to ADD to counterpart credit (making it 1000).
         """
-        # Handle adjustment
-        if self.apply_charge_deduction and self.charge_amount > 0 and self.charge_account_id:
+        # Handle adjustment - ONLY for inbound (customer) payments
+        # For vendor payments, bank charges are recorded separately, not as part of the payment
+        if (self.apply_charge_deduction and self.charge_amount > 0 
+            and self.charge_account_id and self.payment_type == 'inbound'):
             # Convert amounts to company currency
             adjustment_balance = self.currency_id._convert(
                 self.charge_amount,
@@ -234,56 +236,32 @@ class AccountPayment(models.Model):
                 self.date,
             )
             
-            # Adjustment Scenarios:
-            # 
-            # INBOUND (Customer Payment):
+            # INBOUND (Customer Payment) Adjustment:
             # - Payment Amount = 1000 (what customer paid / applied to invoice)
             # - Adjustment Amount = 100 (bank fee - our expense)
             # - Bank Amount = 900 (net received in bank)
+            # 
             # Desired Journal Entry:
             # Debit:  Bank (Outstanding)      900   (net received)
-            # Debit:  Bank Charges (Expense)  100   (our expense - always debit)
+            # Debit:  Bank Charges (Expense)  100   (our expense)
             # Credit: Accounts Receivable    1000   (full customer payment)
             #
-            # OUTBOUND (Vendor Payment):
-            # - Payment Amount = 1000 (what we owe vendor / applied to bill)
-            # - Adjustment Amount = 100 (bank fee - our expense)
-            # - Bank Amount = 1100 (total paid out including adjustment)
-            # Desired Journal Entry:
-            # Debit:  Accounts Payable       1000   (full vendor bill amount)
-            # Debit:  Bank Charges (Expense)  100   (our expense - always debit)
-            # Credit: Bank                   1100   (total paid out)
-            #
             # Odoo's formula: counterpart_balance = -liquidity_balance - sum(write_off_balances)
-            #
-            # For INBOUND with force_balance = 900:
+            # With force_balance = 900:
             # - Liquidity balance = +900 (debit bank)
             # - Write-off balance = +100 (debit expense)  
             # - Counterpart = -900 - 100 = -1000 (credit receivable 1000) ✓
-            #
-            # For OUTBOUND with force_balance = -1100:
-            # - Liquidity balance = -1100 (credit bank)
-            # - Write-off balance = +100 (debit expense)
-            # - Counterpart = -(-1100) - 100 = +1100 - 100 = +1000 (debit payable 1000) ✓
             
-            # Set force_balance to bank_amount
-            if self.payment_type == 'inbound':
-                force_balance = bank_balance  # +900 (debit bank)
-            else:
-                # Outbound: bank_amount is already the total (payment + adjustment)
-                # e.g., 1000 + 100 = 1100, needs to be negative (credit)
-                force_balance = -bank_balance  # -1100 (credit bank)
+            force_balance = bank_balance  # +900 (debit bank)
             
-            # Adjustment line: ALWAYS positive balance (debit expense)
-            # For inbound: positive amount_currency adds to counterpart credit
-            # For outbound: positive amount_currency reduces counterpart debit
+            # Adjustment line: positive balance (debit expense)
             adjustment_line = {
                 'name': self.charge_label or 'Bank Charges',
                 'account_id': self.charge_account_id.id,
                 'partner_id': self.partner_id.id if self.partner_id else False,
                 'currency_id': self.currency_id.id,
-                'amount_currency': self.charge_amount,  # Always positive
-                'balance': adjustment_balance,  # Always positive (debit expense)
+                'amount_currency': self.charge_amount,
+                'balance': adjustment_balance,
             }
             if write_off_line_vals is None:
                 write_off_line_vals = []
