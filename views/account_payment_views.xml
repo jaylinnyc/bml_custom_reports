@@ -75,14 +75,16 @@
                                invisible="not selected_invoice_ids"/>
                     </group>
                     
-                    <!-- Detailed invoice list view -->
+                    <!-- Detailed invoice list view sorted by due date -->
                     <group colspan="4" invisible="not selected_invoice_ids">
                         <field name="selected_invoice_ids" nolabel="1" colspan="4">
-                            <list create="false" delete="true" editable="bottom">
+                            <list create="false" delete="true" editable="bottom" default_order="invoice_date_due asc">
                                 <field name="name" string="Invoice" readonly="1"/>
-                                <field name="invoice_date" string="Date" readonly="1"/>
-                                <field name="amount_total" string="Total" readonly="1"/>
-                                <field name="amount_residual" string="Amount Due" readonly="1"/>
+                                <field name="invoice_date" string="Invoice Date" readonly="1"/>
+                                <field name="invoice_date_due" string="Due Date" readonly="1" 
+                                       decoration-danger="invoice_date_due and invoice_date_due &lt; current_date"/>
+                                <field name="amount_total" string="Total" readonly="1" sum="Total"/>
+                                <field name="amount_residual" string="Amount Due" readonly="1" sum="Total Due"/>
                                 <field name="payment_state" string="Status" 
                                        widget="badge"
                                        decoration-warning="payment_state == 'partial'"
@@ -125,14 +127,16 @@
                                invisible="not selected_invoice_ids"/>
                     </group>
                     
-                    <!-- Detailed invoice list view -->
+                    <!-- Detailed invoice list view sorted by due date -->
                     <group colspan="4" invisible="not selected_invoice_ids">
                         <field name="selected_invoice_ids" nolabel="1" colspan="4">
-                            <list create="false" delete="true" editable="bottom">
+                            <list create="false" delete="true" editable="bottom" default_order="invoice_date_due asc">
                                 <field name="name" string="Invoice" readonly="1"/>
-                                <field name="invoice_date" string="Date" readonly="1"/>
-                                <field name="amount_total" string="Total" readonly="1"/>
-                                <field name="amount_residual" string="Amount Due" readonly="1"/>
+                                <field name="invoice_date" string="Invoice Date" readonly="1"/>
+                                <field name="invoice_date_due" string="Due Date" readonly="1"
+                                       decoration-danger="invoice_date_due and invoice_date_due &lt; current_date"/>
+                                <field name="amount_total" string="Total" readonly="1" sum="Total"/>
+                                <field name="amount_residual" string="Amount Due" readonly="1" sum="Total Due"/>
                                 <field name="payment_state" string="Status" 
                                        widget="badge"
                                        decoration-warning="payment_state == 'partial'"
