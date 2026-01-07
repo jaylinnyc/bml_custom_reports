@@ -164,15 +164,15 @@ class AccountPayment(models.Model):
         Inbound (customer payment): bank_amount = amount - adjustment
         - Customer pays 1000, bank charges 100, we receive 900
         
-        Outbound (vendor payment): bank_amount = amount (no change)
-        - Vendor payments don't use adjustment in journal entry
-        - Bank charges for vendor payments are recorded separately
+        Outbound (vendor payment): bank_amount = amount + adjustment
+        - We pay vendor 1000, bank charges 100, bank pays out 1100
         """
         for payment in self:
-            if (payment.apply_charge_deduction and payment.charge_amount > 0 
-                and payment.payment_type == 'inbound'):
-                # Only adjust bank amount for inbound (customer) payments
-                payment.bank_amount = payment.amount - payment.charge_amount
+            if payment.apply_charge_deduction and payment.charge_amount > 0:
+                if payment.payment_type == 'inbound':
+                    payment.bank_amount = payment.amount - payment.charge_amount
+                else:  # outbound
+                    payment.bank_amount = payment.amount + payment.charge_amount
             else:
                 payment.bank_amount = payment.amount
 
@@ -197,31 +197,16 @@ class AccountPayment(models.Model):
     def _prepare_move_line_default_vals(self, write_off_line_vals=None, force_balance=None):
         """Override to add adjustment line if applicable.
         
-        Adjustment Scenario (inbound payment):
-        - Customer pays 1000 for invoice
-        - Bank deducts 100 as transfer fee
-        - We receive 900 net
+        INBOUND (Customer Payment):
+        - Amount = 1000 (invoice amount), Adjustment = 100, Bank receives = 900
+        - Journal: Bank 900 Dr, Expense 100 Dr, Receivable 1000 Cr
         
-        Journal Entry should be:
-        Debit:  Bank (Outstanding)      900   (net received)
-        Debit:  Bank Charges (Expense)  100   (the fee)
-        Credit: Accounts Receivable    1000   (customer's payment)
-        
-        To achieve this, we need:
-        - Liquidity (Bank) line: Odoo creates this from self.amount, but we need to reduce it
-        - Write-off line: Creates the expense debit
-        - Counterpart (Receivable): Should be full amount (1000)
-        
-        Using Odoo's write-off mechanism with NEGATIVE amount_currency:
-        - This reduces the counterpart credit, which is NOT what we want
-        
-        The solution: Use force_balance to reduce bank to 900, and write-off with
-        POSITIVE amount_currency to ADD to counterpart credit (making it 1000).
+        OUTBOUND (Vendor Payment):
+        - Amount = 1000 (bill amount), Adjustment = 100, Bank pays = 1100
+        - Journal: Payable 1000 Dr, Expense 100 Dr, Bank 1100 Cr
         """
-        # Handle adjustment - ONLY for inbound (customer) payments
-        # For vendor payments, bank charges are recorded separately, not as part of the payment
-        if (self.apply_charge_deduction and self.charge_amount > 0 
-            and self.charge_account_id and self.payment_type == 'inbound'):
+        # Handle adjustment for both inbound and outbound payments
+        if self.apply_charge_deduction and self.charge_amount > 0 and self.charge_account_id:
             # Convert amounts to company currency
             adjustment_balance = self.currency_id._convert(
                 self.charge_amount,
@@ -230,31 +215,21 @@ class AccountPayment(models.Model):
                 self.date,
             )
             bank_balance = self.currency_id._convert(
-                self.bank_amount,  # 900 = amount - adjustment
+                self.bank_amount,
                 self.company_id.currency_id,
                 self.company_id,
                 self.date,
             )
             
-            # INBOUND (Customer Payment) Adjustment:
-            # - Payment Amount = 1000 (what customer paid / applied to invoice)
-            # - Adjustment Amount = 100 (bank fee - our expense)
-            # - Bank Amount = 900 (net received in bank)
-            # 
-            # Desired Journal Entry:
-            # Debit:  Bank (Outstanding)      900   (net received)
-            # Debit:  Bank Charges (Expense)  100   (our expense)
-            # Credit: Accounts Receivable    1000   (full customer payment)
-            #
-            # Odoo's formula: counterpart_balance = -liquidity_balance - sum(write_off_balances)
-            # With force_balance = 900:
-            # - Liquidity balance = +900 (debit bank)
-            # - Write-off balance = +100 (debit expense)  
-            # - Counterpart = -900 - 100 = -1000 (credit receivable 1000) ✓
+            # Set force_balance based on payment type
+            if self.payment_type == 'inbound':
+                # Inbound: bank receives less (900), counterpart is full amount (1000)
+                force_balance = bank_balance  # +900 (debit bank)
+            else:
+                # Outbound: bank pays more (1100), counterpart is bill amount (1000)
+                force_balance = -bank_balance  # -1100 (credit bank)
             
-            force_balance = bank_balance  # +900 (debit bank)
-            
-            # Adjustment line: positive balance (debit expense)
+            # Adjustment line: always debit expense
             adjustment_line = {
                 'name': self.charge_label or 'Bank Charges',
                 'account_id': self.charge_account_id.id,

@@ -22,34 +22,32 @@
                 <field name="can_link_invoices" invisible="1"/>
             </xpath>
             
-            <!-- Add payment adjustment section in group2 - ONLY for inbound (customer) payments -->
+            <!-- Add payment adjustment section in group2 -->
             <xpath expr="//group[@name='group2']" position="inside">
-                <separator string="Payment Adjustment" colspan="2" 
-                           invisible="payment_type != 'inbound'"/>
+                <separator string="Payment Adjustment" colspan="2"/>
                 <field name="apply_charge_deduction" 
                        string="Apply Adjustment"
                        widget="boolean_toggle"
-                       readonly="state != 'draft'"
-                       invisible="payment_type != 'inbound'"/>
+                       readonly="state != 'draft'"/>
                 <field name="charge_amount" 
                        string="Adjustment Amount"
-                       invisible="not apply_charge_deduction or payment_type != 'inbound'"
+                       invisible="not apply_charge_deduction"
                        readonly="state != 'draft'"/>
                 <field name="charge_account_id" 
                        string="Adjustment Account"
-                       required="apply_charge_deduction and charge_amount > 0 and payment_type == 'inbound'"
-                       invisible="not apply_charge_deduction or payment_type != 'inbound'"
+                       required="apply_charge_deduction and charge_amount > 0"
+                       invisible="not apply_charge_deduction"
                        readonly="state != 'draft'"
                        options="{'no_create': True}"/>
                 <field name="charge_label"
                        string="Description"
-                       invisible="not apply_charge_deduction or payment_type != 'inbound'"
+                       invisible="not apply_charge_deduction"
                        readonly="state != 'draft'"/>
             </xpath>
             
             <!-- Add hint to Amount field -->
             <xpath expr="//field[@name='amount']" position="attributes">
-                <attribute name="help">For inbound payments: enter amount received in bank (adjustments like bank charges will be deducted). For outbound payments: enter amount to pay vendor.</attribute>
+                <attribute name="help">Enter the payment amount. For customer payments with adjustments, this is the invoice amount (bank receives less). For vendor payments with adjustments, this is the bill amount (bank pays more).</attribute>
             </xpath>
             
             <!-- Invoice selector for DRAFT payments -->
