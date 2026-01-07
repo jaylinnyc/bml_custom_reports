@@ -72,7 +72,8 @@ class AccountPayment(models.Model):
     charge_account_id = fields.Many2one(
         comodel_name='account.account',
         string="Charge Account",
-        domain="[('account_type', 'in', ['expense', 'expense_direct_cost']), ('company_id', '=', company_id)]",
+        domain="[('account_type', 'in', ['expense', 'expense_direct_cost'])]",
+        check_company=True,
         help="Expense account for the charge (e.g., Bank Charges)"
     )
     
