@@ -100,7 +100,7 @@
                        invisible="not can_link_invoices"
                        col="4">
                     
-                    <div colspan="4" class="alert alert-info mb-3">
+                    <div colspan="4" class="alert alert-info mb-3" role="status">
                         <strong>Advance Payment:</strong> This payment has 
                         <field name="unreconciled_amount" class="oe_inline" readonly="1"/> 
                         unreconciled. Select invoices below to link and reconcile.
