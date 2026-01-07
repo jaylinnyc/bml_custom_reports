@@ -6,7 +6,7 @@
     Features:
     1. Invoice selector - select unpaid invoices for customer payments (draft)
     2. Link invoices - link invoices to existing confirmed payments (advance payments)
-    3. Charge deduction - deduct bank charges/fees from payments
+    3. Payment adjustment - handle bank charges/fees
     -->
 
     <record id="view_account_payment_form_invoice_selector" model="ir.ui.view">
@@ -22,19 +22,19 @@
                 <field name="can_link_invoices" invisible="1"/>
             </xpath>
             
-            <!-- Add charge deduction section in group2 -->
+            <!-- Add payment adjustment section in group2 -->
             <xpath expr="//group[@name='group2']" position="inside">
-                <separator string="Charge Deduction" colspan="2"/>
+                <separator string="Payment Adjustment" colspan="2"/>
                 <field name="apply_charge_deduction" 
-                       string="Deduct Charges"
+                       string="Apply Adjustment"
                        widget="boolean_toggle"
                        readonly="state != 'draft'"/>
                 <field name="charge_amount" 
-                       string="Charge Amount"
+                       string="Adjustment Amount"
                        invisible="not apply_charge_deduction"
                        readonly="state != 'draft'"/>
                 <field name="charge_account_id" 
-                       string="Charge Account"
+                       string="Adjustment Account"
                        required="apply_charge_deduction and charge_amount > 0"
                        invisible="not apply_charge_deduction"
                        readonly="state != 'draft'"
@@ -45,9 +45,9 @@
                        readonly="state != 'draft'"/>
             </xpath>
             
-            <!-- Add hint to Amount field explaining it should be bank received amount -->
+            <!-- Add hint to Amount field explaining adjustment -->
             <xpath expr="//field[@name='amount']" position="attributes">
-                <attribute name="help">For inbound payments: enter amount received in bank (customer paid amount minus charges). For outbound payments: enter amount applied to bills (vendor bill amount, charges paid separately).</attribute>
+                <attribute name="help">For inbound payments: enter amount received in bank. For outbound payments: enter amount applied to bills. If there are adjustments (bank charges), they will be recorded separately.</attribute>
             </xpath>
             
             <!-- Invoice selector for DRAFT payments -->

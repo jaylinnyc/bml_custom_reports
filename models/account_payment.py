@@ -4,11 +4,11 @@ Account Payment Extension
 
 Extends the account.payment model with:
 1. Invoice selector - select unpaid invoices when creating direct payments
-2. Charge deduction - deduct bank charges and fees from payments
+2. Payment adjustment - handle bank charges and fees
 3. Link invoices to existing confirmed payments (for advance payments)
 """
 
-from odoo import models, fields, api, _
+from odoo import models, fields, api, _, Command
 from odoo.exceptions import UserError
 import logging
 
@@ -17,7 +17,7 @@ _logger = logging.getLogger(__name__)
 
 class AccountPayment(models.Model):
     """
-    Extend account.payment for invoice selection and charge deduction.
+    Extend account.payment for invoice selection and payment adjustment.
     """
     _inherit = 'account.payment'
 
@@ -67,41 +67,41 @@ class AccountPayment(models.Model):
     )
 
     # -------------------------------------------------------------------------
-    # Charge Deduction Fields
+    # Payment Adjustment Fields
     # -------------------------------------------------------------------------
     
     apply_charge_deduction = fields.Boolean(
-        string="Deduct Charges",
+        string="Apply Adjustment",
         default=False,
-        help="Enable to deduct bank charges or fees from this payment"
+        help="Enable to add adjustment for bank charges or fees"
     )
     
     charge_amount = fields.Monetary(
-        string="Charge Amount",
+        string="Adjustment Amount",
         currency_field='currency_id',
         default=0.0,
-        help="Amount to deduct (e.g., bank transfer fee)"
+        help="Adjustment amount (e.g., bank transfer fee)"
     )
     
     charge_account_id = fields.Many2one(
         comodel_name='account.account',
-        string="Charge Account",
+        string="Adjustment Account",
         domain="[('account_type', 'in', ['expense', 'expense_direct_cost'])]",
         check_company=True,
-        help="Expense account for the charge (e.g., Bank Charges)"
+        help="Account for the adjustment (e.g., Bank Charges)"
     )
     
     charge_label = fields.Char(
-        string="Charge Description",
+        string="Adjustment Description",
         default="Bank Charges",
-        help="Description for the charge journal entry line"
+        help="Description for the adjustment journal entry line"
     )
     
     bank_amount = fields.Monetary(
         string="Bank Amount",
         compute='_compute_bank_amount',
         currency_field='currency_id',
-        help="Actual bank amount: for inbound payments (amount - charge), for outbound payments (amount + charge)"
+        help="Actual bank amount: for inbound payments (amount - adjustment), for outbound payments (amount + adjustment)"
     )
 
     @api.depends('payment_type', 'partner_type', 'state', 'is_reconciled')
@@ -109,9 +109,10 @@ class AccountPayment(models.Model):
         """Show invoice selector for customer inbound payments and vendor outbound payments."""
         for payment in self:
             # Show for draft payments OR confirmed payments that can still be linked
+            # Note: Odoo uses 'supplier' for vendors in partner_type field
             payment.show_invoice_selector = (
                 ((payment.payment_type == 'inbound' and payment.partner_type == 'customer') or
-                 (payment.payment_type == 'outbound' and payment.partner_type == 'vendor'))
+                 (payment.payment_type == 'outbound' and payment.partner_type == 'supplier'))
                 and payment.state in ('draft', 'in_process')
             )
 
@@ -120,8 +121,9 @@ class AccountPayment(models.Model):
         """Check if payment has unreconciled balance that can be linked to invoices."""
         for payment in self:
             can_link = False
+            # Note: Odoo uses 'supplier' for vendors in partner_type field
             if (((payment.payment_type == 'inbound' and payment.partner_type == 'customer') or
-                 (payment.payment_type == 'outbound' and payment.partner_type == 'vendor'))
+                 (payment.payment_type == 'outbound' and payment.partner_type == 'supplier'))
                 and payment.state == 'in_process'
                 and payment.move_id):
                 # Check if there's unreconciled balance
@@ -159,10 +161,10 @@ class AccountPayment(models.Model):
     def _compute_bank_amount(self):
         """Compute bank amount based on payment type.
         
-        Inbound (customer payment): bank_amount = amount - charge
+        Inbound (customer payment): bank_amount = amount - adjustment
         - Customer pays 1000, bank charges 100, we receive 900
         
-        Outbound (vendor payment): bank_amount = amount + charge  
+        Outbound (vendor payment): bank_amount = amount + adjustment  
         - We pay vendor 1000, bank charges 100, total paid out is 1100
         """
         for payment in self:
@@ -193,9 +195,9 @@ class AccountPayment(models.Model):
                 self.selected_invoice_ids = [(5, 0, 0)]  # Clear all
 
     def _prepare_move_line_default_vals(self, write_off_line_vals=None, force_balance=None):
-        """Override to add charge deduction line if applicable.
+        """Override to add adjustment line if applicable.
         
-        Bank Charge Scenario (inbound payment):
+        Adjustment Scenario (inbound payment):
         - Customer pays 1000 for invoice
         - Bank deducts 100 as transfer fee
         - We receive 900 net
@@ -216,27 +218,27 @@ class AccountPayment(models.Model):
         The solution: Use force_balance to reduce bank to 900, and write-off with
         POSITIVE amount_currency to ADD to counterpart credit (making it 1000).
         """
-        # Handle charge deduction
+        # Handle adjustment
         if self.apply_charge_deduction and self.charge_amount > 0 and self.charge_account_id:
             # Convert amounts to company currency
-            charge_balance = self.currency_id._convert(
+            adjustment_balance = self.currency_id._convert(
                 self.charge_amount,
                 self.company_id.currency_id,
                 self.company_id,
                 self.date,
             )
             bank_balance = self.currency_id._convert(
-                self.bank_amount,  # 900 = amount - charge
+                self.bank_amount,  # 900 = amount - adjustment
                 self.company_id.currency_id,
                 self.company_id,
                 self.date,
             )
             
-            # Bank Charge Scenarios:
+            # Adjustment Scenarios:
             # 
             # INBOUND (Customer Payment):
             # - Payment Amount = 1000 (what customer paid / applied to invoice)
-            # - Charge Amount = 100 (bank fee - our expense)
+            # - Adjustment Amount = 100 (bank fee - our expense)
             # - Bank Amount = 900 (net received in bank)
             # Desired Journal Entry:
             # Debit:  Bank (Outstanding)      900   (net received)
@@ -245,8 +247,8 @@ class AccountPayment(models.Model):
             #
             # OUTBOUND (Vendor Payment):
             # - Payment Amount = 1000 (what we owe vendor / applied to bill)
-            # - Charge Amount = 100 (bank fee - our expense)
-            # - Bank Amount = 1100 (total paid out including charge)
+            # - Adjustment Amount = 100 (bank fee - our expense)
+            # - Bank Amount = 1100 (total paid out including adjustment)
             # Desired Journal Entry:
             # Debit:  Accounts Payable       1000   (full vendor bill amount)
             # Debit:  Bank Charges (Expense)  100   (our expense - always debit)
@@ -268,29 +270,111 @@ class AccountPayment(models.Model):
             if self.payment_type == 'inbound':
                 force_balance = bank_balance  # +900 (debit bank)
             else:
-                # Outbound: bank_amount is already the total (payment + charge)
+                # Outbound: bank_amount is already the total (payment + adjustment)
                 # e.g., 1000 + 100 = 1100, needs to be negative (credit)
                 force_balance = -bank_balance  # -1100 (credit bank)
             
-            # Charge line: ALWAYS positive balance (debit expense)
+            # Adjustment line: ALWAYS positive balance (debit expense)
             # For inbound: positive amount_currency adds to counterpart credit
             # For outbound: positive amount_currency reduces counterpart debit
-            charge_line = {
+            adjustment_line = {
                 'name': self.charge_label or 'Bank Charges',
                 'account_id': self.charge_account_id.id,
                 'partner_id': self.partner_id.id if self.partner_id else False,
                 'currency_id': self.currency_id.id,
                 'amount_currency': self.charge_amount,  # Always positive
-                'balance': charge_balance,  # Always positive (debit expense)
+                'balance': adjustment_balance,  # Always positive (debit expense)
             }
             if write_off_line_vals is None:
                 write_off_line_vals = []
-            write_off_line_vals = list(write_off_line_vals) + [charge_line]
+            write_off_line_vals = list(write_off_line_vals) + [adjustment_line]
         
         return super()._prepare_move_line_default_vals(
             write_off_line_vals=write_off_line_vals, 
             force_balance=force_balance
         )
+
+    @api.model
+    def _get_trigger_fields_to_synchronize(self):
+        """Add adjustment fields to trigger synchronization with journal entry.
+        
+        This ensures that when a payment is reset to draft, edited, and re-confirmed,
+        the adjustment changes are properly reflected in the journal entry.
+        """
+        fields = super()._get_trigger_fields_to_synchronize()
+        return fields + ('apply_charge_deduction', 'charge_amount', 'charge_account_id', 'charge_label')
+
+    def _synchronize_to_moves(self, changed_fields):
+        """Override to handle adjustment fields properly on sync.
+        
+        When adjustment fields change, we need to:
+        1. NOT pass old adjustment write-off values (to avoid duplicates)
+        2. Let _prepare_move_line_default_vals create fresh adjustment line
+        """
+        # Check if any adjustment field changed
+        adjustment_fields = {'apply_charge_deduction', 'charge_amount', 'charge_account_id', 'charge_label'}
+        adjustment_changed = bool(adjustment_fields & set(changed_fields))
+        
+        if not adjustment_changed:
+            # No adjustment changes - use standard sync
+            return super()._synchronize_to_moves(changed_fields)
+        
+        # Adjustment fields changed - need custom handling
+        if not any(field_name in changed_fields for field_name in self._get_trigger_fields_to_synchronize()):
+            return
+        
+        for pay in self:
+            if pay.move_id.state == 'posted':
+                continue
+            
+            liquidity_lines, counterpart_lines, writeoff_lines = pay._seek_for_lines()
+            
+            # Don't pass old write-off values - let _prepare_move_line_default_vals
+            # create fresh adjustment line based on current payment values
+            # This prevents duplicate adjustment lines
+            write_off_line_vals = []
+            
+            # Only preserve non-adjustment write-off lines (if any exist)
+            if writeoff_lines and pay.charge_account_id:
+                non_adjustment_writeoffs = writeoff_lines.filtered(
+                    lambda l: l.account_id.id != pay.charge_account_id.id
+                )
+                for line in non_adjustment_writeoffs:
+                    write_off_line_vals.append({
+                        'name': line.name,
+                        'account_id': line.account_id.id,
+                        'partner_id': line.partner_id.id,
+                        'currency_id': line.currency_id.id,
+                        'amount_currency': line.amount_currency,
+                        'balance': line.balance,
+                    })
+            
+            line_vals_list = pay._prepare_move_line_default_vals(write_off_line_vals=write_off_line_vals)
+            
+            line_ids_commands = [
+                Command.update(liquidity_lines.id, line_vals_list[0]) if liquidity_lines else Command.create(line_vals_list[0]),
+                Command.update(counterpart_lines.id, line_vals_list[1]) if counterpart_lines else Command.create(line_vals_list[1])
+            ]
+            # Delete all existing writeoff lines
+            for line in writeoff_lines:
+                line_ids_commands.append((2, line.id))
+            # Create new writeoff lines (including adjustment line if applicable)
+            for extra_line_vals in line_vals_list[2:]:
+                line_ids_commands.append((0, 0, extra_line_vals))
+            
+            to_write = {
+                'date': pay.date,
+                'partner_id': pay.partner_id.id,
+                'currency_id': pay.currency_id.id,
+                'partner_bank_id': pay.partner_bank_id.id,
+                'line_ids': line_ids_commands,
+            }
+            if 'journal_id' in changed_fields:
+                to_write.update({
+                    'name': '/',
+                    'journal_id': pay.journal_id.id
+                })
+            pay.move_id.with_context(skip_invoice_sync=True).write(to_write)
 
     def action_post(self):
         """Override to link selected invoices and trigger reconciliation."""
