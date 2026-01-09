@@ -46,7 +46,32 @@ This document captures key differences and patterns for Odoo 19 development, bas
 <field name="currency_id" column_invisible="True"/>
 ```
 
-### 4. Search View Group By
+### 4. Inheriting Tree/List Views - Safe XPath Patterns
+When inheriting tree views, the field structure may vary between base Odoo views. Use safe XPath patterns:
+
+```xml
+<!-- UNSAFE - Fields may not exist in parent view -->
+<xpath expr="//field[@name='name']" position="after">
+    <field name="custom_field"/>
+</xpath>
+<xpath expr="//field[@name='display_name']" position="after">
+    <field name="custom_field"/>
+</xpath>
+
+<!-- SAFE - Target the tree/list root -->
+<xpath expr="//tree" position="inside">
+    <field name="custom_field" optional="hide"/>
+</xpath>
+
+<!-- SAFE - Target known structural elements -->
+<xpath expr="//tree/header" position="inside">
+    <button name="action_custom" type="object" string="Custom Action"/>
+</xpath>
+```
+
+**Why?** Base views in Odoo 19 may use computed fields or different field arrangements. Using `position="inside"` on the tree root ensures the field is added regardless of the parent view structure.
+
+### 5. Search View Group By
 - The `<group>` tag in search views should NOT have `expand` or `string` attributes for Group By sections
 - Keep it simple:
 
@@ -62,7 +87,7 @@ This document captures key differences and patterns for Odoo 19 development, bas
 </group>
 ```
 
-### 5. Date Filters in Search Views
+### 6. Date Filters in Search Views
 Use the `date` attribute for automatic date range filters:
 
 ```xml
