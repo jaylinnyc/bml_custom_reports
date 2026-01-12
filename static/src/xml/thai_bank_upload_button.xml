@@ -1,15 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
-    <!-- Extend the default ListView.Buttons to add Upload Thai Statement button -->
-    <t t-name="web.ListView.Buttons" t-inherit="web.ListView.Buttons" t-inherit-mode="extension">
+    <!-- Button template for Upload Thai Statement - adds button alongside original Upload button -->
+    <t t-name="bml_custom_reports.ThaiBankUploadButton" t-inherit="web.ListView.Buttons" t-inherit-mode="primary">
         <xpath expr="." position="inside">
-            <t t-if="env.model.root.resModel === 'account.bank.statement'">
-                <button class="btn btn-secondary ms-1" 
-                        t-on-click="() => this.uploadThaiStatement()"
-                        title="Upload Thai Bank Statement">
-                    <i class="fa fa-upload me-1"/>Upload Thai Statement
-                </button>
-            </t>
+            <!-- Keep the original buttons first -->
+            <t t-call-assets="web.ListView.Buttons" t-call-assets-options="{'in_inherit': true}"/>
+            
+            <!-- Add our custom Thai upload button -->
+            <button class="btn btn-secondary ms-1" 
+                    t-on-click="() => this.uploadThaiStatement()"
+                    title="Upload Thai Bank Statement">
+                <i class="fa fa-upload me-1"/>Upload Thai Statement
+            </button>
         </xpath>
     </t>
 </templates>

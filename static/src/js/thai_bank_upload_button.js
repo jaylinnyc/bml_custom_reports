@@ -33,6 +33,7 @@ export class BankStatementListController extends ListController {
 export const bankStatementListView = {
     ...listView,
     Controller: BankStatementListController,
+    buttonTemplate: "bml_custom_reports.ThaiBankUploadButton",
 };
 
 // Register the custom view for bank statements list
