@@ -30,8 +30,8 @@
                 <attribute name="invisible">1</attribute>
             </xpath>
             
-            <!-- Add our simplified charge deduction section after group1 -->
-            <xpath expr="//group[@name='group1']" position="inside">
+            <!-- Add our simplified charge deduction section after partner_bank_id, before group_payment -->
+            <xpath expr="//field[@name='partner_bank_id']" position="after">
                 <separator string="Charge Deduction" colspan="2" 
                            invisible="not can_edit_wizard"/>
                 <field name="apply_adjustment" 
