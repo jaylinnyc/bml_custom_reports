@@ -18,6 +18,28 @@ class ThaiBankStatementConverter:
     def __init__(self):
         self.dataframes = []
     
+    def detect_statement_format(self, df_raw, filename):
+        """
+        Detect the bank statement format to use specialized parser
+        Returns: format_type string or None for generic parser
+        """
+        # Check first few rows for format signatures
+        first_10_rows = []
+        for i in range(min(10, len(df_raw))):
+            row_data = df_raw.iloc[i].dropna().tolist()
+            if row_data:
+                first_10_rows.append(' '.join([str(x) for x in row_data[:5]]))
+        
+        combined = ' '.join(first_10_rows).lower()
+        
+        # SCB Saving Account format - has account metadata section
+        if 'ชื่อบัญชี' in combined and 'ประเภทบัญชี' in combined and 'ออมทรัพย์' in combined:
+            return 'scb_saving'
+        
+        # Add more format detections here as needed
+        
+        return 'generic'
+    
     def find_column_by_keywords(self, columns, keywords):
         """Find a column that matches any of the keywords (substring match)"""
         for col in columns:
@@ -36,6 +58,7 @@ class ThaiBankStatementConverter:
         
         # List of date formats to try
         formats = [
+            '%d-%b-%Y',      # 05-Jan-2026
             '%d-%b-%y',      # 01-Nov-25
             '%d/%m/%Y',      # 07/10/2025
             '%d/%m/%y',      # 07/10/25
@@ -142,7 +165,7 @@ class ThaiBankStatementConverter:
         """Convert any bank statement format to Odoo format"""
         # Find date column
         date_col = self.find_column_by_keywords(df.columns, [
-            'date', 'transaction date', 'effective date', 'วันที่', 'วันที่ทำ', 'วันทำ'
+            'date', 'transaction date', 'effective date', 'วันที่', 'วันทำ', 'เวลา'
         ])
         
         # Find ALL description/detail/cheque related columns
@@ -159,15 +182,34 @@ class ThaiBankStatementConverter:
         ]
         cheque_cols = self.find_all_columns_by_keywords(df.columns, cheque_keywords)
         
-        # Find debit/withdrawal column
-        debit_col = self.find_column_by_keywords(df.columns, [
-            'debit', 'withdrawal', 'ถอน', 'จ่าย', 'ออก'
+        # Check for "Debit/Credit" indicator column (some banks use this format)
+        debit_credit_indicator_col = self.find_column_by_keywords(df.columns, [
+            'debit/credit', 'dr/cr', 'transaction type'
         ])
         
-        # Find credit/deposit column
-        credit_col = self.find_column_by_keywords(df.columns, [
-            'credit', 'deposit', 'ฝาก', 'รับ', 'เข้า'
+        # Find debit/withdrawal column (exclude indicators)
+        debit_col = self.find_column_by_keywords(df.columns, [
+            'withdrawal', 'ถอน', 'จ่าย', 'ออก'
         ])
+        # Only look for 'debit' if it's not the indicator column
+        if not debit_col:
+            for col in df.columns:
+                col_lower = str(col).lower()
+                if 'debit' in col_lower and col != debit_credit_indicator_col:
+                    debit_col = col
+                    break
+        
+        # Find credit/deposit column (exclude indicators)
+        credit_col = self.find_column_by_keywords(df.columns, [
+            'deposit', 'ฝาก', 'รับ', 'เข้า'
+        ])
+        # Only look for 'credit' if it's not the indicator column
+        if not credit_col:
+            for col in df.columns:
+                col_lower = str(col).lower()
+                if 'credit' in col_lower and col != debit_credit_indicator_col:
+                    credit_col = col
+                    break
         
         # If neither debit nor credit found, try to find a generic amount column
         amount_col = None
@@ -221,14 +263,28 @@ class ThaiBankStatementConverter:
             
             # Get debit and credit values
             if amount_col:
-                # Single amount column - always treat as credit (deposit)
+                # Single amount column with optional debit/credit indicator
                 amount_value = self.clean_float_value(row.get(amount_col, 0))
-                if amount_value >= 0:
-                    credit = amount_value
-                    debit = 0.0
+                
+                # Check if there's a debit/credit indicator column
+                if debit_credit_indicator_col:
+                    indicator = str(row.get(debit_credit_indicator_col, '')).lower().strip()
+                    if 'debit' in indicator or 'dr' in indicator or 'withdrawal' in indicator:
+                        # Debit = money out (negative)
+                        debit = abs(amount_value)
+                        credit = 0.0
+                    else:
+                        # Credit = money in (positive)
+                        credit = abs(amount_value)
+                        debit = 0.0
                 else:
-                    debit = abs(amount_value)
-                    credit = 0.0
+                    # No indicator - use sign of amount
+                    if amount_value >= 0:
+                        credit = amount_value
+                        debit = 0.0
+                    else:
+                        debit = abs(amount_value)
+                        credit = 0.0
             else:
                 debit = self.clean_float_value(row.get(debit_col, 0)) if debit_col else 0.0
                 credit = self.clean_float_value(row.get(credit_col, 0)) if credit_col else 0.0
@@ -252,8 +308,78 @@ class ThaiBankStatementConverter:
         
         return result
     
+    def convert_scb_saving(self, df_raw):
+        """
+        Convert SCB Saving Account statement format
+        This format has account metadata in rows 0-6, then header at row 7
+        """
+        # Read with header at row 7
+        try:
+            df = pd.read_excel(io.BytesIO(self.current_file_data), header=7)
+            # Clean column names
+            df.columns = df.columns.str.strip()
+        except:
+            # Fallback: manually extract from row 7 onwards
+            header_row = 7
+            columns = df_raw.iloc[header_row].tolist()
+            df = df_raw.iloc[header_row+1:].copy()
+            df.columns = columns
+            df.columns = [str(c).strip() for c in df.columns]
+        
+        # SCB Saving format columns: วันที่/เวลา, ถอน, ฝาก, ยอดเงินในบัญชี, etc.
+        date_col = 'วันที่/เวลา'
+        debit_col = 'ถอน'  # Withdrawal
+        credit_col = 'ฝาก'  # Deposit
+        desc_col = 'คำอธิบายรายละเอียด' if 'คำอธิบายรายละเอียด' in df.columns else None
+        
+        result = []
+        for idx, row in df.iterrows():
+            # Get date value
+            date_value = row.get(date_col, '')
+            if pd.isna(date_value) or str(date_value).strip() == '':
+                continue
+            
+            # Skip special rows like "B/F" (brought forward)
+            if 'b/f' in str(date_value).lower() or 'ยอดเงินคงเหลือยกมา' in str(row.values).lower():
+                continue
+            
+            # Parse date (format: "02/10/2025\n09:30:49")
+            try:
+                date_str = str(date_value).split('\n')[0].strip()  # Take only date part
+                date = self.parse_date(date_str)
+            except:
+                continue
+            
+            # Get amounts
+            debit = self.clean_float_value(row.get(debit_col, 0))
+            credit = self.clean_float_value(row.get(credit_col, 0))
+            
+            if debit == 0 and credit == 0:
+                continue
+            
+            # Build description
+            desc = str(row.get(desc_col, '')).strip() if desc_col else ''
+            if desc and desc.lower() != 'nan':
+                description = desc
+            else:
+                description = 'SCB Transaction'
+            
+            # Calculate net amount (credit - debit)
+            amount = credit - debit
+            
+            result.append({
+                'date': date,
+                'payment_ref': description,
+                'amount': amount,
+            })
+        
+        return result
+    
     def find_header_row(self, df):
         """Try to find the actual header row in a messy file"""
+        best_idx = 0
+        best_keyword_count = 0
+        
         for idx, row in df.iterrows():
             # Skip completely empty rows
             non_null_values = [x for x in row if pd.notna(x) and str(x).strip() != '']
@@ -265,12 +391,19 @@ class ThaiBankStatementConverter:
             # Check if row contains common header keywords
             header_keywords = ['date', 'description', 'detail', 'debit', 'credit', 'withdrawal', 
                              'deposit', 'amount', 'cheque', 'check', 'balance', 'pay',
-                             'วัน', 'รายละเอียด', 'จ่าย', 'รับ', 'เบิก', 'วิธี', 'เล่มที่', 'เล่มเล้ว', 'รายการ']
+                             'วัน', 'รายละเอียด', 'จ่าย', 'รับ', 'เบิก', 'วิธี', 'เล่มที่', 'เล่มเล้ว', 'รายการ',
+                             'ถอน', 'ฝาก', 'เวลา', 'ช่องทาง']
             
             keyword_count = sum(1 for keyword in header_keywords if keyword in row_str)
             
-            if keyword_count > 0:
-                return idx
+            # Track the row with the most keyword matches
+            if keyword_count > best_keyword_count:
+                best_keyword_count = keyword_count
+                best_idx = idx
+        
+        # Only return a header row if we found at least 2 keywords
+        if best_keyword_count >= 2:
+            return best_idx
         
         return 0
     
@@ -334,40 +467,55 @@ class ThaiBankStatementConverter:
         :param filename: Original filename
         :return: List of transaction dictionaries ready for Odoo
         """
+        # Store file data for specialized parsers
+        self.current_file_data = file_data
+        
         # Determine file type
         file_ext = filename.lower().split('.')[-1]
         
         try:
             if file_ext == 'csv':
-                df = pd.read_csv(io.BytesIO(file_data), encoding='utf-8')
-                # Clean column names (strip whitespace)
-                df.columns = df.columns.str.strip()
+                df_raw = pd.read_csv(io.BytesIO(file_data), header=None)
             elif file_ext in ['xlsx', 'xls']:
-                # Read without assuming first row is header
                 df_raw = pd.read_excel(io.BytesIO(file_data), header=None)
-                
-                # Find the actual header row
-                header_idx = self.find_header_row(df_raw)
-                
-                if header_idx > 0:
-                    # Try to read with merged header handling
-                    df_merged = self.read_excel_with_merged_headers(file_data, header_idx)
-                    if df_merged is not None:
-                        df = df_merged
-                    else:
-                        df = pd.read_excel(io.BytesIO(file_data), header=header_idx)
-                else:
-                    df = pd.read_excel(io.BytesIO(file_data))
-                
-                # Clean column names (strip whitespace)
-                df.columns = df.columns.str.strip()
             else:
                 raise UserError(f"Unsupported file format: {file_ext}. Please upload CSV or Excel files.")
         except Exception as e:
             raise UserError(f"Error reading file: {str(e)}")
         
-        # Convert using generic format
-        result = self.convert_generic(df)
+        # Detect statement format
+        format_type = self.detect_statement_format(df_raw, filename)
+        
+        # Use specialized parser if format is detected
+        if format_type == 'scb_saving':
+            result = self.convert_scb_saving(df_raw)
+        else:
+            # Generic parser for other formats
+            try:
+                if file_ext == 'csv':
+                    df = pd.read_csv(io.BytesIO(file_data), encoding='utf-8')
+                    df.columns = df.columns.str.strip()
+                elif file_ext in ['xlsx', 'xls']:
+                    # Find the actual header row
+                    header_idx = self.find_header_row(df_raw)
+                    
+                    if header_idx > 0:
+                        # Try to read with merged header handling
+                        df_merged = self.read_excel_with_merged_headers(file_data, header_idx)
+                        if df_merged is not None:
+                            df = df_merged
+                        else:
+                            df = pd.read_excel(io.BytesIO(file_data), header=header_idx)
+                    else:
+                        df = pd.read_excel(io.BytesIO(file_data))
+                    
+                    # Clean column names (strip whitespace)
+                    df.columns = df.columns.str.strip()
+            except Exception as e:
+                raise UserError(f"Error reading file: {str(e)}")
+            
+            # Convert using generic format
+            result = self.convert_generic(df)
         
         if not result:
             raise UserError(
