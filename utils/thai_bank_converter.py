@@ -103,12 +103,15 @@ class ThaiBankStatementConverter:
         except:
             return False
         
-        # Must have at least one amount (debit or credit)
+        # Must have at least one amount column
+        if not debit_col and not credit_col:
+            # If neither debit nor credit column specified, row is still valid
+            # (amount will be determined from a generic amount column later)
+            return True
+        
+        # Must have at least one non-zero amount (debit or credit)
         debit = self.clean_float_value(row.get(debit_col, 0)) if debit_col else 0
         credit = self.clean_float_value(row.get(credit_col, 0)) if credit_col else 0
-        
-        if not debit_col and not credit_col:
-            return False
         
         if debit == 0 and credit == 0:
             return False
@@ -158,26 +161,33 @@ class ThaiBankStatementConverter:
         
         # Find debit/withdrawal column
         debit_col = self.find_column_by_keywords(df.columns, [
-            'debit', 'withdrawal', 'debit amount', 'amount', 'pay', 'paid', 'ถอน', 'จ่าย', 'ออก'
+            'debit', 'withdrawal', 'ถอน', 'จ่าย', 'ออก'
         ])
         
         # Find credit/deposit column
         credit_col = self.find_column_by_keywords(df.columns, [
-            'credit', 'deposit', 'credit amount', 'received', 'ฝาก', 'รับ', 'เข้า'
+            'credit', 'deposit', 'ฝาก', 'รับ', 'เข้า'
         ])
+        
+        # If neither debit nor credit found, try to find a generic amount column
+        amount_col = None
+        if not debit_col and not credit_col:
+            amount_col = self.find_column_by_keywords(df.columns, [
+                'amount', 'จำนวน'
+            ])
         
         if not date_col:
             raise UserError("Could not find date column in the file")
         
-        if not debit_col and not credit_col:
-            raise UserError("Could not find debit or credit columns in the file")
+        if not debit_col and not credit_col and not amount_col:
+            raise UserError("Could not find amount columns in the file")
         
         result = []
         skipped_rows = 0
         
         for idx, row in df.iterrows():
             # Validate if this is a transaction row
-            if not self.is_valid_transaction_row(row, date_col, debit_col, credit_col, desc_cols[0] if desc_cols else None):
+            if not self.is_valid_transaction_row(row, date_col, debit_col or amount_col, credit_col, desc_cols[0] if desc_cols else None):
                 skipped_rows += 1
                 continue
             
@@ -210,16 +220,26 @@ class ThaiBankStatementConverter:
             description = ' / '.join(label_parts) if label_parts else 'Bank Transaction'
             
             # Get debit and credit values
-            debit = self.clean_float_value(row.get(debit_col, 0)) if debit_col else 0.0
-            credit = self.clean_float_value(row.get(credit_col, 0)) if credit_col else 0.0
-            
-            # Handle negative values (convert negative to positive for appropriate column)
-            if debit < 0:
-                credit = abs(debit)
-                debit = 0.0
-            if credit < 0:
-                debit = abs(credit)
-                credit = 0.0
+            if amount_col:
+                # Single amount column - always treat as credit (deposit)
+                amount_value = self.clean_float_value(row.get(amount_col, 0))
+                if amount_value >= 0:
+                    credit = amount_value
+                    debit = 0.0
+                else:
+                    debit = abs(amount_value)
+                    credit = 0.0
+            else:
+                debit = self.clean_float_value(row.get(debit_col, 0)) if debit_col else 0.0
+                credit = self.clean_float_value(row.get(credit_col, 0)) if credit_col else 0.0
+                
+                # Handle negative values (convert negative to positive for appropriate column)
+                if debit < 0:
+                    credit = abs(debit)
+                    debit = 0.0
+                if credit < 0:
+                    debit = abs(credit)
+                    credit = 0.0
             
             # Calculate signed amount for Odoo (positive = deposit, negative = withdrawal)
             amount = credit - debit
@@ -320,6 +340,8 @@ class ThaiBankStatementConverter:
         try:
             if file_ext == 'csv':
                 df = pd.read_csv(io.BytesIO(file_data), encoding='utf-8')
+                # Clean column names (strip whitespace)
+                df.columns = df.columns.str.strip()
             elif file_ext in ['xlsx', 'xls']:
                 # Read without assuming first row is header
                 df_raw = pd.read_excel(io.BytesIO(file_data), header=None)
@@ -336,6 +358,9 @@ class ThaiBankStatementConverter:
                         df = pd.read_excel(io.BytesIO(file_data), header=header_idx)
                 else:
                     df = pd.read_excel(io.BytesIO(file_data))
+                
+                # Clean column names (strip whitespace)
+                df.columns = df.columns.str.strip()
             else:
                 raise UserError(f"Unsupported file format: {file_ext}. Please upload CSV or Excel files.")
         except Exception as e:
