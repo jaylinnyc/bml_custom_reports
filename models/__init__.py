@@ -3,6 +3,7 @@ from . import account_move
 from . import account_move_line
 from . import account_move_wht
 from . import account_payment
+from . import account_journal
 from . import account_bank_statement
 from . import report_footer_config
 from . import stock_picking

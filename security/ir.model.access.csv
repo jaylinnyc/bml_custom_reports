@@ -3,3 +3,4 @@ access_bml_report_footer_config_user,bml.report.footer.config.user,model_bml_rep
 access_bml_report_footer_config_admin,bml.report.footer.config.admin,model_bml_report_footer_config,base.group_erp_manager,1,1,1,1
 access_account_payment_register_wht_line,account.payment.register.wht.line,model_account_payment_register_wht_line,account.group_account_invoice,1,1,1,1
 access_wht_text_export_wizard,wht.text.export.wizard,model_wht_text_export_wizard,account.group_account_user,1,1,1,1
+access_thai_bank_statement_wizard,thai.bank.statement.wizard,model_bml_thai_bank_statement_wizard,account.group_account_user,1,1,1,1
