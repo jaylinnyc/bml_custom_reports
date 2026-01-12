@@ -14,13 +14,13 @@
         'views/report_inventory_operations.xml',  # inventory repair & consumption reports
         'views/account_move_views.xml',      # hide accounting date, show delivery date
         'views/account_payment_views.xml',   # invoice selector for direct payments
-        'views/account_bank_statement_views.xml',  # Thai bank statement upload button
         'data/report_footer_data.xml',       # default footer configurations
         # WHT Handling & Payment Enhancements
         'wizard/account_payment_register_wht_views.xml',
         'wizard/wht_text_export_wizard_views.xml',
         # Thai Bank Statement Upload
         'wizard/thai_bank_statement_upload_wizard_views.xml',
+        'views/account_bank_statement_views.xml',  # Thai bank statement upload button (must load after wizard)
     ],
     'assets': {
         'web.assets_backend': [
