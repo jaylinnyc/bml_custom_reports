@@ -54,6 +54,14 @@ class ThaiBankStatementConverter:
         if pd.isna(date_str) or date_str == '':
             return None
         
+        # If already a datetime object, convert directly
+        if isinstance(date_str, datetime):
+            return date_str.date()
+        
+        # If it's a pandas Timestamp, convert directly  
+        if isinstance(date_str, pd.Timestamp):
+            return date_str.date()
+        
         date_str = str(date_str).strip()
         
         # List of date formats to try
@@ -194,7 +202,7 @@ class ThaiBankStatementConverter:
         # Only look for 'debit' if it's not the indicator column
         if not debit_col:
             for col in df.columns:
-                col_lower = str(col).lower()
+                col_lower = str(col).lower().strip()
                 if 'debit' in col_lower and col != debit_credit_indicator_col:
                     debit_col = col
                     break
@@ -206,7 +214,7 @@ class ThaiBankStatementConverter:
         # Only look for 'credit' if it's not the indicator column
         if not credit_col:
             for col in df.columns:
-                col_lower = str(col).lower()
+                col_lower = str(col).lower().strip()
                 if 'credit' in col_lower and col != debit_credit_indicator_col:
                     credit_col = col
                     break
@@ -419,33 +427,53 @@ class ThaiBankStatementConverter:
                 cell_value = ws.cell(header_idx + 1, col).value
                 header_row_1.append(str(cell_value) if cell_value else '')
             
-            # Read second header row (sub-columns)
+            # Check if there's a second header row by looking at the next row's content
+            # A second header row should contain mostly strings, not dates/numbers
             header_row_2 = []
+            has_second_header = False
             if header_idx + 2 <= ws.max_row:
                 for col in range(1, ws.max_column + 1):
                     cell_value = ws.cell(header_idx + 2, col).value
-                    header_row_2.append(str(cell_value) if cell_value else '')
-            
-            # Combine headers
-            final_columns = []
-            for col_idx, (h1, h2) in enumerate(zip(header_row_1, header_row_2)):
-                h1 = h1.strip() if h1 else ''
-                h2 = h2.strip() if h2 else ''
+                    header_row_2.append(cell_value)
                 
-                if h1 and h2 and h1 != h2 and h2.lower() != 'unnamed':
-                    combined = f"{h1} {h2}"
-                elif h1:
-                    combined = h1
-                elif h2:
-                    combined = h2
-                else:
-                    combined = f"Unnamed: {col_idx}"
+                # Check if row 2 looks like a header (mostly strings, not dates/numbers)
+                non_empty_count = sum(1 for v in header_row_2 if v is not None and str(v).strip() != '')
+                string_count = sum(1 for v in header_row_2 if isinstance(v, str) and v.strip() != '')
                 
-                final_columns.append(combined)
+                # If more than 50% are strings and we have at least 2 string values, treat as second header
+                has_second_header = non_empty_count > 0 and string_count >= 2 and string_count / non_empty_count > 0.5
             
-            # Read data starting from row after headers
+            # Determine final columns
+            if has_second_header:
+                # Combine headers
+                final_columns = []
+                for col_idx, (h1, h2) in enumerate(zip(header_row_1, header_row_2)):
+                    h1 = str(h1).strip() if h1 else ''
+                    h2 = str(h2).strip() if h2 else ''
+                    
+                    if h1 and h2 and h1 != h2 and h2.lower() != 'unnamed':
+                        combined = f"{h1} {h2}"
+                    elif h1:
+                        combined = h1
+                    elif h2:
+                        combined = h2
+                    else:
+                        combined = f"Unnamed: {col_idx}"
+                    
+                    final_columns.append(combined)
+                
+                # Read data starting from row after both headers
+                data_start_row = header_idx + 3
+            else:
+                # Use only first header row
+                final_columns = [h.strip() if h else f"Unnamed: {i}" for i, h in enumerate(header_row_1)]
+                
+                # Read data starting from row after first header
+                data_start_row = header_idx + 2
+            
+            # Read data rows
             data_rows = []
-            for row_idx in range(header_idx + 3, ws.max_row + 1):
+            for row_idx in range(data_start_row, ws.max_row + 1):
                 row_data = []
                 for col in range(1, ws.max_column + 1):
                     cell_value = ws.cell(row_idx, col).value
