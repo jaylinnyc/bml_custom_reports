@@ -15,19 +15,36 @@ export class BmlBankRecKanbanController extends BankRecKanbanController {
     }
 
     async autoReconcileAll() {
-        // Get all statement line IDs from current view
-        const stLineIds = this.model.root.records.map(r => r.resId);
-        
-        if (!stLineIds.length) {
-            this.notification.add("No transactions to reconcile", { type: "warning" });
-            return;
-        }
-        
         try {
+            // Get ALL unreconciled statement line IDs from the database, not just the current page
+            // Use the same domain/filters as the current view to respect user's filtering
+            const domain = this.model.root.config.domain || [];
+            
+            // Search for all unreconciled lines matching the current view's domain
+            const stLineIds = await this.orm.searchRead(
+                'account.bank.statement.line',
+                domain,
+                ['id'],
+                { limit: false }  // No limit - get all records
+            );
+            
+            const allIds = stLineIds.map(r => r.id);
+            
+            if (!allIds.length) {
+                this.notification.add("No transactions to reconcile", { type: "warning" });
+                return;
+            }
+            
+            // Show progress notification
+            this.notification.add(
+                `Starting auto-reconciliation of ${allIds.length} transaction(s)...`,
+                { type: "info" }
+            );
+            
             const result = await this.orm.call(
                 'account.bank.statement.line',
                 'action_manual_auto_reconcile',
-                [stLineIds]
+                [allIds]
             );
             
             // Reload the view to show reconciled lines
