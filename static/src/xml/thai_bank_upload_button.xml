@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- Button template for Upload Thai Statement - adds button to bank statement list view -->
+    <t t-name="bml_custom_reports.ThaiBankUploadButton" t-inherit="web.ListView.Buttons" t-inherit-mode="primary">
+        <xpath expr="." position="inside">
+            <button class="btn btn-primary ms-1" 
+                    t-on-click="() => this.uploadThaiStatement()"
+                    title="Upload Thai Bank Statement">
+                <i class="fa fa-upload me-1"/>Upload Thai Statement
+            </button>
+        </xpath>
+    </t>
+</templates>

@@ -26,6 +26,8 @@
         'web.assets_backend': [
             'bml_custom_reports/static/src/js/bank_rec_auto_reconcile.js',
             'bml_custom_reports/static/src/xml/bank_rec_auto_reconcile.xml',
+            'bml_custom_reports/static/src/js/thai_bank_upload_button.js',
+            'bml_custom_reports/static/src/xml/thai_bank_upload_button.xml',
         ],
     },
     'external_dependencies': {

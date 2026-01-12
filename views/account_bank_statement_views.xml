@@ -1,20 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
-        <!-- Inherit the search view to add Upload Thai Statement button -->
-        <record id="view_bank_statement_search_thai_upload" model="ir.ui.view">
-            <field name="name">account.bank.statement.search.thai.upload</field>
+        <!-- Override the bank statement list view to use our custom JS controller -->
+        <record id="view_bank_statement_tree_thai_upload" model="ir.ui.view">
+            <field name="name">account.bank.statement.list.thai.upload</field>
             <field name="model">account.bank.statement</field>
-            <field name="inherit_id" ref="account.view_bank_statement_search"/>
+            <field name="inherit_id" ref="account.view_bank_statement_tree"/>
             <field name="arch" type="xml">
-                <search position="inside">
-                    <button name="%(action_thai_bank_statement_upload_wizard)d" 
-                            type="action" 
-                            string="Upload Thai Statement"
-                            class="btn-primary"/>
-                </search>
+                <list position="attributes">
+                    <attribute name="js_class">bank_statement_list_upload</attribute>
+                </list>
             </field>
         </record>
-
     </data>
 </odoo>
