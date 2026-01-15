@@ -16,6 +16,7 @@ This feature adds automated Thai bank statement upload functionality to Odoo 19,
 
 1. **Navigate to Bank Statements**:
    - Go to: **Accounting → Bank → Statements**
+   - Or: **Accounting Dashboard → Bank Journal Card → View Transactions**
 
 2. **Click "Upload Thai Statement"**:
    - A wizard will open
@@ -34,7 +35,13 @@ This feature adds automated Thai bank statement upload functionality to Odoo 19,
      - Extract transaction descriptions, cheque numbers, etc.
      - Create bank statement with all transactions
      - Run auto-reconciliation
-     - Open the bank reconciliation widget
+     - Show the imported transactions filtered by the statement and journal
+
+5. **Finding Your Uploaded Transactions**:
+   - After upload, you'll see the list of imported transactions
+   - In Odoo 19, bank statements are accessed through the journal's transaction list
+   - Go to: **Accounting Dashboard → Bank Journal Card → View Transactions**
+   - Or search for transactions by date range in the bank reconciliation view
 
 ## Supported File Formats
 
@@ -113,6 +120,29 @@ The converter transforms Thai bank statements to Odoo's expected format:
 ```
 
 ## Troubleshooting
+
+### Access Rights Error
+**Error**: "This operation is only allowed for group: Accountant/Bookkeeper"
+
+**Solution**: Ensure the user has the "Accountant" or "Bookkeeper" role:
+- Go to: **Settings → Users & Companies → Users**
+- Select the user
+- Under "Accounting" tab, enable "Accountant" or "Bookkeeper" access
+
+### Cannot Find Uploaded Transactions
+**Issue**: After uploading, transactions seem to disappear
+
+**Solution**: In Odoo 19, bank statements are accessed differently:
+1. Go to **Accounting Dashboard**
+2. Find your bank journal card
+3. Click **"View Transactions"** or the transaction count
+4. Your uploaded transactions will be there, grouped by statement
+5. Use filters to find specific statements by reference or date
+
+Alternatively:
+- Go to **Accounting → Bank → Reconciliation**
+- Filter by your bank journal
+- All uploaded transactions will appear here for reconciliation
 
 ### No transactions found
 - Ensure the file contains a header row with recognizable column names

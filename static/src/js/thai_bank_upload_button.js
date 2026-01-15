@@ -16,6 +16,41 @@ export class BankStatementListController extends ListController {
     }
 
     async uploadThaiStatement() {
+        // Get the journal ID from multiple possible sources
+        let journalId = false;
+        
+        // Try 1: Get from context (if set explicitly)
+        if (this.props.context.default_journal_id) {
+            journalId = this.props.context.default_journal_id;
+        }
+        
+        // Try 2: Get from the current domain filter (when viewing from dashboard)
+        // The domain looks like: [('journal_id', '=', 41)]
+        if (!journalId && this.props.domain) {
+            for (const condition of this.props.domain) {
+                if (Array.isArray(condition) && condition[0] === 'journal_id' && condition[1] === '=' && condition[2]) {
+                    journalId = condition[2];
+                    break;
+                }
+            }
+        }
+        
+        // Try 3: If there are selected records, get journal from first selected statement
+        if (!journalId && this.model.root.selection && this.model.root.selection.length > 0) {
+            const firstSelected = this.model.root.selection[0];
+            if (firstSelected.data && firstSelected.data.journal_id) {
+                journalId = firstSelected.data.journal_id[0];
+            }
+        }
+        
+        // Try 4: If viewing records, get journal from first visible record
+        if (!journalId && this.model.root.records && this.model.root.records.length > 0) {
+            const firstRecord = this.model.root.records[0];
+            if (firstRecord.data && firstRecord.data.journal_id) {
+                journalId = firstRecord.data.journal_id[0];
+            }
+        }
+        
         // Open the Thai bank statement upload wizard
         this.action.doAction({
             type: 'ir.actions.act_window',
@@ -23,7 +58,7 @@ export class BankStatementListController extends ListController {
             views: [[false, 'form']],
             target: 'new',
             context: {
-                default_journal_id: this.props.context.default_journal_id || false,
+                default_journal_id: journalId,
             }
         });
     }

@@ -81,6 +81,18 @@ class ThaiBankStatementUploadWizard(models.TransientModel):
         if not self.filename:
             raise UserError(_('Filename is missing.'))
         
+        # Check journal configuration before processing
+        if not self.journal_id.default_account_id:
+            raise UserError(_(
+                'The journal "%s" does not have a Default Account configured.\n\n'
+                'Please configure it first:\n'
+                '1. Go to: Accounting → Configuration → Journals\n'
+                '2. Open the journal "%s"\n'
+                '3. Go to "Accounting Information" tab\n'
+                '4. Set the "Default Account" field\n'
+                '5. Save and try uploading again.'
+            ) % (self.journal_id.name, self.journal_id.name))
+        
         # Decode file data
         try:
             file_data = base64.b64decode(self.statement_file)
@@ -112,7 +124,7 @@ class ThaiBankStatementUploadWizard(models.TransientModel):
             amount_str = str(abs(trans['amount'])).replace('.', '')
             trans['unique_import_id'] = f"{self.journal_id.id}-{date_str}-{amount_str}-{idx}"
         
-        # Prepare statement values
+        # Prepare statement values (must be a list for _create_bank_statements)
         statement_vals = {
             'reference': self.statement_name or self.filename,
             'journal_id': self.journal_id.id,
@@ -121,7 +133,7 @@ class ThaiBankStatementUploadWizard(models.TransientModel):
             'transactions': transactions,
         }
         
-        # Use Odoo's standard statement creation method
+        # Use Odoo's standard statement creation method (expects a list of statement dicts)
         try:
             statement_ids, ignored_qty = self.journal_id._create_bank_statements([statement_vals])
         except Exception as e:
@@ -152,7 +164,13 @@ class ThaiBankStatementUploadWizard(models.TransientModel):
         if ignored_qty:
             message += _('\n%d transactions were already imported and were ignored.') % ignored_qty
         
-        # Return action to open bank reconciliation widget
+        # Log statement creation for debugging
+        statements = self.env['account.bank.statement'].browse(statement_ids)
+        _logger.info(f"Created {len(statement_ids)} statement(s) for journal '{self.journal_id.name}' (ID: {self.journal_id.id}): "
+                    f"Statement IDs: {statement_ids}, Names: {statements.mapped('name')}, "
+                    f"Journal IDs on statements: {statements.mapped('journal_id.id')}")
+        
+        # Return action to open bank reconciliation widget (standard Odoo behavior)
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
