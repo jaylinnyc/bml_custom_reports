@@ -20,9 +20,6 @@ export class BankStatementListController extends ListController {
         // When clicking "Statements" from dashboard, open_action_with_context sets default_journal_id
         const journalId = this.props.context.default_journal_id || false;
         
-        console.log('[Thai Bank Upload] Opening wizard with journal:', journalId);
-        console.log('[Thai Bank Upload] Full context:', this.props.context);
-        
         // Open the Thai bank statement upload wizard with the journal context
         // This is the same pattern used by Odoo's standard import functionality
         this.action.doAction({

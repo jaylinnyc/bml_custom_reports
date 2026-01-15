@@ -66,12 +66,8 @@ class ThaiBankStatementUploadWizard(models.TransientModel):
         
         # Get journal from context
         journal_id = self.env.context.get('default_journal_id')
-        _logger.info(f"[Thai Upload Wizard] default_get called - Context: {self.env.context}")
-        _logger.info(f"[Thai Upload Wizard] default_journal_id from context: {journal_id}")
-        
         if journal_id:
             res['journal_id'] = journal_id
-            _logger.info(f"[Thai Upload Wizard] Set journal_id in defaults: {journal_id}")
         
         return res
 
@@ -79,11 +75,9 @@ class ThaiBankStatementUploadWizard(models.TransientModel):
         """Process uploaded file and create bank statement"""
         self.ensure_one()
         
-        _logger.info(f"[Thai Upload] action_upload_statement called - Selected journal: {self.journal_id.name} (ID: {self.journal_id.id})")
-        
-        if not self.statement_file:
-            raise UserError(_('Please upload a file.'))
-        
+    def action_upload_statement(self):
+        """Process uploaded file and create bank statement"""
+        self.ensure_one()
         if not self.filename:
             raise UserError(_('Filename is missing.'))
         
@@ -129,6 +123,8 @@ class ThaiBankStatementUploadWizard(models.TransientModel):
             date_str = trans['date'].strftime('%Y%m%d')
             amount_str = str(abs(trans['amount'])).replace('.', '')
             trans['unique_import_id'] = f"{self.journal_id.id}-{date_str}-{amount_str}-{idx}"
+            # Explicitly set journal_id on each transaction line
+            trans['journal_id'] = self.journal_id.id
         
         # Prepare statement values (must be a list for _create_bank_statements)
         statement_vals = {
@@ -138,10 +134,6 @@ class ThaiBankStatementUploadWizard(models.TransientModel):
             'balance_end_real': self.balance_end if self.balance_end else 0.0,
             'transactions': transactions,
         }
-        
-        _logger.info(f"[Thai Upload] Prepared statement_vals: reference={statement_vals['reference']}, "
-                    f"journal_id={statement_vals['journal_id']}, transactions={len(transactions)}")
-        _logger.info(f"[Thai Upload] Calling {self.journal_id.code}._create_bank_statements() with journal_id={self.journal_id.id}")
         
         # Use Odoo's standard statement creation method (expects a list of statement dicts)
         try:
