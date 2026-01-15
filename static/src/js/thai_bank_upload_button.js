@@ -16,42 +16,15 @@ export class BankStatementListController extends ListController {
     }
 
     async uploadThaiStatement() {
-        // Get the journal ID from multiple possible sources
-        let journalId = false;
+        // Get journal ID from context - mimics how Odoo's dashboard passes journal context
+        // When clicking "Statements" from dashboard, open_action_with_context sets default_journal_id
+        const journalId = this.props.context.default_journal_id || false;
         
-        // Try 1: Get from context (if set explicitly)
-        if (this.props.context.default_journal_id) {
-            journalId = this.props.context.default_journal_id;
-        }
+        console.log('[Thai Bank Upload] Opening wizard with journal:', journalId);
+        console.log('[Thai Bank Upload] Full context:', this.props.context);
         
-        // Try 2: Get from the current domain filter (when viewing from dashboard)
-        // The domain looks like: [('journal_id', '=', 41)]
-        if (!journalId && this.props.domain) {
-            for (const condition of this.props.domain) {
-                if (Array.isArray(condition) && condition[0] === 'journal_id' && condition[1] === '=' && condition[2]) {
-                    journalId = condition[2];
-                    break;
-                }
-            }
-        }
-        
-        // Try 3: If there are selected records, get journal from first selected statement
-        if (!journalId && this.model.root.selection && this.model.root.selection.length > 0) {
-            const firstSelected = this.model.root.selection[0];
-            if (firstSelected.data && firstSelected.data.journal_id) {
-                journalId = firstSelected.data.journal_id[0];
-            }
-        }
-        
-        // Try 4: If viewing records, get journal from first visible record
-        if (!journalId && this.model.root.records && this.model.root.records.length > 0) {
-            const firstRecord = this.model.root.records[0];
-            if (firstRecord.data && firstRecord.data.journal_id) {
-                journalId = firstRecord.data.journal_id[0];
-            }
-        }
-        
-        // Open the Thai bank statement upload wizard
+        // Open the Thai bank statement upload wizard with the journal context
+        // This is the same pattern used by Odoo's standard import functionality
         this.action.doAction({
             type: 'ir.actions.act_window',
             res_model: 'bml.thai.bank.statement.wizard',
