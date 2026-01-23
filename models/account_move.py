@@ -13,6 +13,19 @@ class AccountMove(models.Model):
         help='Date when goods/services were delivered. Defaults to bill/invoice date if not specified.'
     )
 
+    vat_deduction_used = fields.Boolean(
+        string='VAT Deduction Used',
+        default=False,
+        copy=False,
+        help='Indicates whether this invoice has been used for VAT deduction in monthly closing'
+    )
+
+    vat_deduction_date = fields.Date(
+        string='VAT Deduction Date',
+        copy=False,
+        help='Date when this invoice was used for VAT deduction in monthly closing'
+    )
+
     @api.depends('invoice_date')
     def _compute_delivery_date(self):
         """Set delivery_date to invoice_date by default for new records"""
