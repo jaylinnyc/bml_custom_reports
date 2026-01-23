@@ -150,8 +150,19 @@ class ThaiBankStatementConverter:
         # Skip common summary/total rows by checking description
         if desc_col:
             desc = str(row.get(desc_col, '')).lower()
-            skip_keywords = ['total', 'subtotal', 'summary', 'balance', 'closing', 'opening',
-                           'รวม', 'ยอดรวม', 'ยอด', 'สรุป', 'ปิด', 'เปิด']
+            # Use more specific patterns to avoid false positives
+            # For example, "ยอด" alone is too generic (appears in "ยืนยันยอด" = confirm balance)
+            # but "ยอดรวม" (total amount) or "ยอดยกมา" (carried forward) are summary indicators
+            skip_keywords = [
+                'total', 'subtotal', 'summary', 'closing', 'opening',
+                'grand total', 'sum of',
+                'ยอดรวม',  # Total amount
+                'ยอดยกมา', 'ยอดยกไป',  # Balance carried forward/forward
+                'รวมทั้งหมด',  # Total all
+                'สรุป',  # Summary
+                'ปิดบัญชี', 'เปิดบัญชี',  # Close/open account
+            ]
+            # Check for exact matches or phrases, not just substrings
             for keyword in skip_keywords:
                 if keyword in desc:
                     return False
@@ -418,7 +429,8 @@ class ThaiBankStatementConverter:
     def read_excel_with_merged_headers(self, file_data, header_idx):
         """Read Excel file handling merged cells in headers"""
         try:
-            wb = openpyxl.load_workbook(io.BytesIO(file_data))
+            # Use data_only=True to read formula results instead of formulas
+            wb = openpyxl.load_workbook(io.BytesIO(file_data), data_only=True)
             ws = wb.active
             
             # Read first header row
