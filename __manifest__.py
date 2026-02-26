@@ -6,6 +6,7 @@
     'depends': ['account', 'account_accountant', 'purchase', 'stock', 'web'],
     'data': [
         'security/ir.model.access.csv',
+        'data/bank_reconciliation_config_data.xml',
         'views/res_company_views.xml',       # company settings for custom header
         'views/report_header.xml',           # custom header override
         'views/report_footer_config_views.xml',

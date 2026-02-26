@@ -11,6 +11,23 @@ class AccountMoveLine(models.Model):
     _inherit = 'account.move.line'
 
     @api.model
+    def _get_bank_rec_day_margin(self):
+        default_margin = 15
+        param_value = self.env['ir.config_parameter'].sudo().get_param(
+            'bml_custom_reports.bank_rec_day_margin',
+            default=str(default_margin),
+        )
+        try:
+            return max(0, int(param_value))
+        except (TypeError, ValueError):
+            _logger.warning(
+                "Invalid ir.config_parameter bml_custom_reports.bank_rec_day_margin=%r; using default %s days",
+                param_value,
+                default_margin,
+            )
+            return default_margin
+
+    @api.model
     def web_search_read(self, domain=None, specification=None, offset=0, limit=None, order=None, count_limit=None):
         """
         Override web_search_read to filter journal items in bank reconciliation widget.
@@ -22,6 +39,8 @@ class AccountMoveLine(models.Model):
         3. Filter by date range: bank statement date range ± 7 days based on JOURNAL ENTRY date
            (e.g., if statement covers Dec 1-31, show entries from Nov 24 to Jan 7)
         """
+        day_margin = self._get_bank_rec_day_margin()
+
         # Check if we're in bank reconciliation context
         if self.env.context.get('preferred_aml_value') is not None:
             # Try to find statement_line_id from domain
@@ -47,7 +66,7 @@ class AccountMoveLine(models.Model):
                     # Exclude ALL statement lines to prevent self-reconciliation
                     domain = domain + [('statement_line_id', '=', False)]
                     
-                    # Add date range filter based on BANK STATEMENT date range ± 7 days
+                    # Add date range filter based on BANK STATEMENT date range ± configured days
                     # Filter by JOURNAL ENTRY date (move_id.date) not journal item date
                     statement = st_line.statement_id
                     if statement:
@@ -58,18 +77,18 @@ class AccountMoveLine(models.Model):
                             min_date = min(dates)
                             max_date = max(dates)
                             
-                            # Expand by 7 days on each side
-                            date_from = min_date - timedelta(days=7)
-                            date_to = max_date + timedelta(days=7)
+                            # Expand by configured days on each side
+                            date_from = min_date - timedelta(days=day_margin)
+                            date_to = max_date + timedelta(days=day_margin)
                             
                             domain = domain + [
                                 ('move_id.date', '>=', fields.Date.to_string(date_from)),
                                 ('move_id.date', '<=', fields.Date.to_string(date_to)),
                             ]
                     elif st_line.date:
-                        # Fallback: if no statement, use statement line date ± 7 days
-                        date_from = st_line.date - timedelta(days=7)
-                        date_to = st_line.date + timedelta(days=7)
+                        # Fallback: if no statement, use statement line date ± configured days
+                        date_from = st_line.date - timedelta(days=day_margin)
+                        date_to = st_line.date + timedelta(days=day_margin)
                         domain = domain + [
                             ('move_id.date', '>=', fields.Date.to_string(date_from)),
                             ('move_id.date', '<=', fields.Date.to_string(date_to)),
