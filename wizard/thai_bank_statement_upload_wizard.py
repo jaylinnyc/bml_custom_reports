@@ -150,10 +150,12 @@ class ThaiBankStatementUploadWizard(models.TransientModel):
                 ])
 
                 if statement_lines:
-                    if len(statement_lines) <= 80:
-                        statement_lines._try_auto_reconcile_statement_lines()
-                    else:
-                        statement_lines._cron_try_auto_reconcile_statement_lines(batch_size=100)
+                    # Always use the synchronous, one-shot variant so the whole
+                    # import stays inside our savepoint. The _cron_* variant
+                    # loops for up to 180s and calls cr.commit() internally,
+                    # which would break atomicity and has been observed looping
+                    # on larger batches.
+                    statement_lines._try_auto_reconcile_statement_lines()
         except UserError:
             raise
         except Exception as e:
