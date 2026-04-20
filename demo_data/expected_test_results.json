@@ -21,6 +21,13 @@
       "net_balance": 8845099.78,
       "description": "CSV format statement inquiry with 3 transactions"
     },
+    "CSV-7961003258H 7-20 Apr26.csv": {
+      "expected_transactions": 94,
+      "total_debit": 20874639.59,
+      "total_credit": 20859690.59,
+      "net_balance": -14949.0,
+      "description": "TIS-620 encoded CSV export (7-20 Apr 2026). Header uses 'DFEBIT' typo for the debit column."
+    },
     "HISTSTMT_RPT2601121214393550_260112121449101 1-11 Jan 2026.xlsx": {
       "expected_transactions": 3,
       "total_debit": 0.0,
@@ -72,9 +79,9 @@
     }
   },
   "metadata": {
-    "total_files": 10,
-    "total_transactions": 138,
-    "last_updated": "2026-01-23",
+    "total_files": 11,
+    "total_transactions": 232,
+    "last_updated": "2026-04-20",
     "notes": [
       "All amounts are in THB (Thai Baht)",
       "Debit = money out (negative), Credit = money in (positive)",

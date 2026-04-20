@@ -17,6 +17,15 @@ class ThaiBankStatementConverter:
     
     def __init__(self):
         self.dataframes = []
+
+    def _read_csv_any_encoding(self, file_data, **kwargs):
+        # Thai bank CSVs come in either UTF-8 or TIS-620/CP874 (legacy Thai).
+        for encoding in ('utf-8', 'tis-620', 'cp874'):
+            try:
+                return pd.read_csv(io.BytesIO(file_data), encoding=encoding, **kwargs)
+            except UnicodeDecodeError:
+                continue
+        raise UserError("Unable to decode CSV file; expected UTF-8 or TIS-620 encoding.")
     
     def detect_statement_format(self, df_raw, filename):
         """
@@ -210,11 +219,12 @@ class ThaiBankStatementConverter:
         debit_col = self.find_column_by_keywords(df.columns, [
             'withdrawal', 'ถอน', 'จ่าย', 'ออก'
         ])
-        # Only look for 'debit' if it's not the indicator column
+        # Only look for 'debit' if it's not the indicator column.
+        # 'dfebit' covers a typo seen in at least one Thai bank CSV export.
         if not debit_col:
             for col in df.columns:
                 col_lower = str(col).lower().strip()
-                if 'debit' in col_lower and col != debit_credit_indicator_col:
+                if ('debit' in col_lower or 'dfebit' in col_lower) and col != debit_credit_indicator_col:
                     debit_col = col
                     break
         
@@ -515,7 +525,7 @@ class ThaiBankStatementConverter:
         
         try:
             if file_ext == 'csv':
-                df_raw = pd.read_csv(io.BytesIO(file_data), header=None)
+                df_raw = self._read_csv_any_encoding(file_data, header=None)
             elif file_ext in ['xlsx', 'xls']:
                 df_raw = pd.read_excel(io.BytesIO(file_data), header=None)
             else:
@@ -533,7 +543,7 @@ class ThaiBankStatementConverter:
             # Generic parser for other formats
             try:
                 if file_ext == 'csv':
-                    df = pd.read_csv(io.BytesIO(file_data), encoding='utf-8')
+                    df = self._read_csv_any_encoding(file_data)
                     df.columns = df.columns.str.strip()
                 elif file_ext in ['xlsx', 'xls']:
                     # Find the actual header row
