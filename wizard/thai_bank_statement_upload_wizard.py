@@ -135,31 +135,30 @@ class ThaiBankStatementUploadWizard(models.TransientModel):
             'transactions': transactions,
         }
         
-        # Use Odoo's standard statement creation method (expects a list of statement dicts)
+        # Atomic block: statement creation and auto-reconciliation must both
+        # succeed, or nothing persists. Any exception inside rolls back to the
+        # savepoint, so partial statements/lines/reconciliations are never left behind.
         try:
-            statement_ids, ignored_qty = self.journal_id._create_bank_statements([statement_vals])
+            with self.env.cr.savepoint():
+                statement_ids, ignored_qty = self.journal_id._create_bank_statements([statement_vals])
+
+                if not statement_ids:
+                    raise UserError(_('No statement was created. All transactions may have been previously imported.'))
+
+                statement_lines = self.env['account.bank.statement.line'].search([
+                    ('statement_id', 'in', statement_ids)
+                ])
+
+                if statement_lines:
+                    if len(statement_lines) <= 80:
+                        statement_lines._try_auto_reconcile_statement_lines()
+                    else:
+                        statement_lines._cron_try_auto_reconcile_statement_lines(batch_size=100)
+        except UserError:
+            raise
         except Exception as e:
-            _logger.error(f"Error creating bank statement: {str(e)}", exc_info=True)
-            raise UserError(_('Error creating bank statement: %s') % str(e))
-        
-        if not statement_ids:
-            raise UserError(_('No statement was created. All transactions may have been previously imported.'))
-        
-        # Get created statement lines
-        statement_lines = self.env['account.bank.statement.line'].search([
-            ('statement_id', 'in', statement_ids)
-        ])
-        
-        # Run auto-reconciliation
-        if statement_lines:
-            try:
-                if len(statement_lines) <= 80:
-                    statement_lines._try_auto_reconcile_statement_lines()
-                else:
-                    statement_lines._cron_try_auto_reconcile_statement_lines(batch_size=100)
-            except Exception as e:
-                _logger.warning(f"Auto-reconciliation failed: {str(e)}")
-                # Don't fail the whole import if auto-reconciliation fails
+            _logger.error(f"Error importing bank statement (rolled back): {str(e)}", exc_info=True)
+            raise UserError(_('Error importing bank statement: %s\n\nNo records were saved.') % str(e))
         
         # Show success message
         message = _('%d transactions imported successfully.') % len(transactions)
