@@ -14,7 +14,6 @@ __pycache__/
 
 # Testing
 /.test_venv
-/demo_data
 /scripts/debug*.py
 /scripts/test*.py
 /scripts/quick*.py

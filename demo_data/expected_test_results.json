@@ -1,0 +1,86 @@
+{
+  "test_files": {
+    "2601 22 CA.xls": {
+      "expected_transactions": 1,
+      "total_debit": 600.0,
+      "total_credit": 0.0,
+      "net_balance": -600.0,
+      "description": "Single transaction withdrawal - SMS Alert Fee"
+    },
+    "ACCHIST_260112122148.xlsx": {
+      "expected_transactions": 2,
+      "total_debit": 202.67,
+      "total_credit": 20266.51,
+      "net_balance": 20063.84,
+      "description": "Account history format with 2 transactions"
+    },
+    "CSV 1-NOV 2025 StatementInquiry_01122025_154324.csv": {
+      "expected_transactions": 3,
+      "total_debit": 0.0,
+      "total_credit": 8845099.78,
+      "net_balance": 8845099.78,
+      "description": "CSV format statement inquiry with 3 transactions"
+    },
+    "HISTSTMT_RPT2601121214393550_260112121449101 1-11 Jan 2026.xlsx": {
+      "expected_transactions": 3,
+      "total_debit": 0.0,
+      "total_credit": 54222104.62,
+      "net_balance": 54222104.62,
+      "description": "Historical statement report with 3 transactions"
+    },
+    "PC6901-001.xlsx": {
+      "expected_transactions": 11,
+      "total_debit": 11554.59,
+      "total_credit": 0.0,
+      "net_balance": -11554.59,
+      "description": "Petty cash format with 11 transactions"
+    },
+    "Petty Cash 01-080126.xlsx": {
+      "expected_transactions": 36,
+      "total_debit": 136980.63,
+      "total_credit": 365953.0,
+      "net_balance": 228972.37,
+      "description": "Detailed petty cash statement - 36 transactions (excludes opening balance 'ยอดยกมา' and 'Total' summary row). Includes transaction with Excel formula that calculates to 17000."
+    },
+    "StatementInquiry_05112025_163844 (SAVING Oct 2025).xlsx": {
+      "expected_transactions": 5,
+      "total_debit": 20000000.0,
+      "total_credit": 15280489.95,
+      "net_balance": -4719510.05,
+      "description": "Savings account inquiry with 5 transactions"
+    },
+    "StatementInquiry_12012026_121809 BAY Saving 1-12 Jan 2026.xlsx": {
+      "expected_transactions": 4,
+      "total_debit": 200.0,
+      "total_credit": 9439332.7,
+      "net_balance": 9439132.7,
+      "description": "BAY bank savings statement with 4 transactions"
+    },
+    "XLS-0538541974 CA-0101 to 100126.xls": {
+      "expected_transactions": 48,
+      "total_debit": 40591854.16,
+      "total_credit": 40731196.29,
+      "net_balance": 139342.13,
+      "description": "Current account statement with 48 transactions"
+    },
+    "XLS-0538547468 SA-0101 to 100126.xls": {
+      "expected_transactions": 25,
+      "total_debit": 4817504.86,
+      "total_credit": 42296691.56,
+      "net_balance": 37479186.7,
+      "description": "Savings account statement with 25 transactions"
+    }
+  },
+  "metadata": {
+    "total_files": 10,
+    "total_transactions": 138,
+    "last_updated": "2026-01-23",
+    "notes": [
+      "All amounts are in THB (Thai Baht)",
+      "Debit = money out (negative), Credit = money in (positive)",
+      "Net balance = total_credit - total_debit",
+      "Transaction counts are critical - amounts may vary slightly due to parsing precision",
+      "Update this file after verifying any parser changes are correct and intentional"
+    ]
+  }
+}
