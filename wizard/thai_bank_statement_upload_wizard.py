@@ -117,7 +117,25 @@ class ThaiBankStatementUploadWizard(models.TransientModel):
         
         if not transactions:
             raise UserError(_('No valid transactions found in the file.'))
-        
+
+        # Pre-flight validation: reject the whole upload if any row is malformed.
+        # Runs before any Odoo write so no partial records can be persisted.
+        validation_errors = []
+        for idx, trans in enumerate(transactions, start=1):
+            date_val = trans.get('date')
+            if not date_val or not hasattr(date_val, 'strftime'):
+                validation_errors.append(_('Row %d: missing or invalid date.') % idx)
+            amount_val = trans.get('amount')
+            if not isinstance(amount_val, (int, float)):
+                validation_errors.append(_('Row %d: amount must be numeric (got %r).') % (idx, amount_val))
+        if validation_errors:
+            raise UserError(_(
+                'The file could not be imported because %(count)d row(s) failed validation. No records were saved.\n\n%(details)s'
+            ) % {
+                'count': len(validation_errors),
+                'details': '\n'.join(validation_errors[:20]),
+            })
+
         # Generate unique import IDs to prevent duplicates
         for idx, trans in enumerate(transactions):
             date_str = trans['date'].strftime('%Y%m%d')
@@ -125,6 +143,23 @@ class ThaiBankStatementUploadWizard(models.TransientModel):
             trans['unique_import_id'] = f"{self.journal_id.id}-{date_str}-{amount_str}-{idx}"
             # Explicitly set journal_id on each transaction line
             trans['journal_id'] = self.journal_id.id
+
+        # Pre-flight duplicate check: if any generated unique_import_id already
+        # exists in the DB, abort before calling _create_bank_statements so the
+        # mid-create "already imported" error cannot leave partial state behind.
+        generated_ids = [t['unique_import_id'] for t in transactions]
+        existing = self.env['account.bank.statement.line'].sudo().search([
+            ('unique_import_id', 'in', generated_ids),
+        ])
+        if existing:
+            existing_ids = set(existing.mapped('unique_import_id'))
+            sample = list(existing_ids)[:10]
+            raise UserError(_(
+                'The file could not be imported because %(count)d transaction(s) are already present in this journal. No records were saved.\n\nFirst duplicates:\n%(sample)s'
+            ) % {
+                'count': len(existing_ids),
+                'sample': '\n'.join(sample),
+            })
         
         # Prepare statement values (must be a list for _create_bank_statements)
         statement_vals = {
