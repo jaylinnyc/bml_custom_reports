@@ -51,13 +51,18 @@
                         </div>
                     </sheet>
                     <footer>
-                        <button string="Upload and Import" 
-                                name="action_upload_statement" 
-                                type="object" 
+                        <button string="Upload and Import"
+                                name="action_upload_statement"
+                                type="object"
                                 class="btn-primary"
                                 data-hotkey="q"/>
-                        <button string="Cancel" 
-                                class="btn-secondary" 
+                        <button string="Delete Duplicates"
+                                name="action_delete_duplicates"
+                                type="object"
+                                class="btn-warning"
+                                confirm="This will delete any unreconciled bank statement lines from a previous failed import of this file. Reconciled lines will not be deleted. Continue?"/>
+                        <button string="Cancel"
+                                class="btn-secondary"
                                 special="cancel"
                                 data-hotkey="z"/>
                     </footer>

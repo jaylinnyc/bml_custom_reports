@@ -71,10 +71,103 @@ class ThaiBankStatementUploadWizard(models.TransientModel):
         
         return res
 
-    def action_upload_statement(self):
-        """Process uploaded file and create bank statement"""
+    def _compute_unique_import_ids(self):
+        """Parse the attached file and return the list of unique_import_ids that an
+        upload of this wizard would generate. Used both by the duplicate pre-flight
+        check and by action_delete_duplicates.
+        """
         self.ensure_one()
-        
+        if not self.filename or not self.statement_file:
+            raise UserError(_('Please attach a file first.'))
+        try:
+            file_data = base64.b64decode(self.statement_file)
+        except Exception as e:
+            raise UserError(_('Error decoding file: %s') % str(e))
+
+        from ..utils.thai_bank_converter import ThaiBankStatementConverter
+        converter = ThaiBankStatementConverter()
+        try:
+            transactions = converter.convert_file(file_data, self.filename)
+        except UserError:
+            raise
+        except Exception as e:
+            raise UserError(_('Error processing file: %s') % str(e))
+
+        if not transactions:
+            raise UserError(_('No valid transactions found in the file.'))
+
+        ids = []
+        for idx, trans in enumerate(transactions):
+            date_val = trans.get('date')
+            amount_val = trans.get('amount')
+            if not date_val or not hasattr(date_val, 'strftime') or not isinstance(amount_val, (int, float)):
+                continue
+            date_str = date_val.strftime('%Y%m%d')
+            amount_str = str(abs(amount_val)).replace('.', '')
+            ids.append(f"{self.journal_id.id}-{date_str}-{amount_str}-{idx}")
+        return ids
+
+    def action_delete_duplicates(self):
+        """Delete unreconciled statement lines whose unique_import_id matches the
+        currently attached file, so the file can be re-uploaded.
+
+        Safety rules:
+        - Only lines with is_reconciled=False are deleted.
+        - If any matching line is already reconciled, the action aborts and
+          lists them; the user must unreconcile manually.
+        - Only lines whose unique_import_id matches ones this exact file would
+          generate are considered — no broad deletes.
+        - Empty parent statements are also removed.
+        """
+        self.ensure_one()
+        generated_ids = self._compute_unique_import_ids()
+        if not generated_ids:
+            raise UserError(_('No transactions could be derived from the file.'))
+
+        existing = self.env['account.bank.statement.line'].search([
+            ('unique_import_id', 'in', generated_ids),
+        ])
+        if not existing:
+            raise UserError(_('No matching duplicates were found for this file.'))
+
+        reconciled = existing.filtered(lambda l: l.is_reconciled)
+        if reconciled:
+            sample = list(reconciled.mapped('unique_import_id'))[:10]
+            raise UserError(_(
+                'Cannot delete: %(count)d of the matching transaction(s) are already reconciled. '
+                'Please unreconcile them manually first.\n\nReconciled unique_import_ids (first 10):\n%(sample)s'
+            ) % {
+                'count': len(reconciled),
+                'sample': '\n'.join(sample),
+            })
+
+        parent_statements = existing.statement_id
+        deleted_count = len(existing)
+        _logger.info(
+            "Thai bank upload wizard: deleting %d duplicate statement line(s) from file '%s' on journal %s",
+            deleted_count, self.filename, self.journal_id.display_name,
+        )
+        existing.unlink()
+
+        empty_statements = parent_statements.filtered(lambda s: not s.line_ids)
+        empty_count = len(empty_statements)
+        if empty_statements:
+            empty_statements.unlink()
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Duplicates Deleted'),
+                'message': _(
+                    '%(lines)d duplicate statement line(s) deleted; %(stmts)d empty statement(s) removed. '
+                    'You may now click Upload and Import.'
+                ) % {'lines': deleted_count, 'stmts': empty_count},
+                'type': 'success',
+                'sticky': False,
+            },
+        }
+
     def action_upload_statement(self):
         """Process uploaded file and create bank statement"""
         self.ensure_one()
