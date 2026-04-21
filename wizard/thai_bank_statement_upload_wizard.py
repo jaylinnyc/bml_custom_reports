@@ -108,16 +108,17 @@ class ThaiBankStatementUploadWizard(models.TransientModel):
         return ids
 
     def action_delete_duplicates(self):
-        """Delete unreconciled statement lines whose unique_import_id matches the
-        currently attached file, so the file can be re-uploaded.
+        """Delete statement lines whose unique_import_id matches the currently
+        attached file, so the file can be re-uploaded. Any reconciled matches
+        are unreconciled first via the standard Odoo API.
 
         Safety rules:
-        - Only lines with is_reconciled=False are deleted.
-        - If any matching line is already reconciled, the action aborts and
-          lists them; the user must unreconcile manually.
-        - Only lines whose unique_import_id matches ones this exact file would
-          generate are considered — no broad deletes.
+        - Scope is bounded to unique_import_ids that this exact file would
+          generate — no broad deletes.
+        - Reconciliations are undone via action_undo_reconciliation() (the
+          standard Odoo API), not raw SQL.
         - Empty parent statements are also removed.
+        - User ACL applies throughout (no sudo).
         """
         self.ensure_one()
         generated_ids = self._compute_unique_import_ids()
@@ -131,15 +132,13 @@ class ThaiBankStatementUploadWizard(models.TransientModel):
             raise UserError(_('No matching duplicates were found for this file.'))
 
         reconciled = existing.filtered(lambda l: l.is_reconciled)
+        unreconciled_count = len(reconciled)
         if reconciled:
-            sample = list(reconciled.mapped('unique_import_id'))[:10]
-            raise UserError(_(
-                'Cannot delete: %(count)d of the matching transaction(s) are already reconciled. '
-                'Please unreconcile them manually first.\n\nReconciled unique_import_ids (first 10):\n%(sample)s'
-            ) % {
-                'count': len(reconciled),
-                'sample': '\n'.join(sample),
-            })
+            _logger.info(
+                "Thai bank upload wizard: unreconciling %d statement line(s) before delete on journal %s",
+                unreconciled_count, self.journal_id.display_name,
+            )
+            reconciled.action_undo_reconciliation()
 
         parent_statements = existing.statement_id
         deleted_count = len(existing)
@@ -154,15 +153,23 @@ class ThaiBankStatementUploadWizard(models.TransientModel):
         if empty_statements:
             empty_statements.unlink()
 
+        if unreconciled_count:
+            message = _(
+                '%(unrec)d line(s) unreconciled, %(lines)d duplicate statement line(s) deleted; '
+                '%(stmts)d empty statement(s) removed. You may now click Upload and Import.'
+            ) % {'unrec': unreconciled_count, 'lines': deleted_count, 'stmts': empty_count}
+        else:
+            message = _(
+                '%(lines)d duplicate statement line(s) deleted; %(stmts)d empty statement(s) removed. '
+                'You may now click Upload and Import.'
+            ) % {'lines': deleted_count, 'stmts': empty_count}
+
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
             'params': {
                 'title': _('Duplicates Deleted'),
-                'message': _(
-                    '%(lines)d duplicate statement line(s) deleted; %(stmts)d empty statement(s) removed. '
-                    'You may now click Upload and Import.'
-                ) % {'lines': deleted_count, 'stmts': empty_count},
+                'message': message,
                 'type': 'success',
                 'sticky': False,
             },

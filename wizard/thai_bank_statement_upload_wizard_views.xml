@@ -60,7 +60,7 @@
                                 name="action_delete_duplicates"
                                 type="object"
                                 class="btn-warning"
-                                confirm="This will delete any unreconciled bank statement lines from a previous failed import of this file. Reconciled lines will not be deleted. Continue?"/>
+                                confirm="This will delete any bank statement lines from a previous import of this file. If any have been auto-reconciled to invoices or payments, those reconciliations will be undone first. Continue?"/>
                         <button string="Cancel"
                                 class="btn-secondary"
                                 special="cancel"
